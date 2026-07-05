@@ -1,26 +1,37 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../convex/_generated/api";
+import { useQuery } from "convex/react";
+import { api } from "./convex/_generated/api";
+import { useAuth } from "./useAuth";
+import { LoginPage, VerifyPage } from "./Auth";
+import { Dashboard } from "./Dashboard";
 
 export default function App() {
-  const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState("");
+  const { auth, login, logout, isAuthed } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
 
-  const joinWaitlist = useMutation(api.waitlist.join);
+  // Check URL for magic link verification
+  const path = window.location.pathname;
+  const urlParams = new URLSearchParams(window.location.search);
+  const verifyToken = path === "/auth/verify" ? urlParams.get("token") : null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setError("");
-    try {
-      await joinWaitlist({ email });
-      setSubmitted(true);
-    } catch (err: any) {
-      setError(err.message || "Etwas ist schiefgelaufen");
-    }
-  };
+  // If verifying magic link
+  if (verifyToken) {
+    return <VerifyPage token={verifyToken} onSuccess={(data) => login(data)} />;
+  }
 
+  // If logged in, show dashboard
+  if (isAuthed) {
+    return <Dashboard auth={auth} onLogout={logout} />;
+  }
+
+  // If login button clicked, show login page
+  if (showLogin) {
+    return <LoginPage onSuccess={() => setShowLogin(false)} />;
+  }
+
+  // Otherwise show landing page
   return (
     <div className="container">
       <section className="hero">
@@ -30,13 +41,20 @@ export default function App() {
           Rechnung. AT-Honorarnoten, DE-Rechnungen, automatisches Mahnwesen,
           Buchhaltungs-Report.
         </p>
-        {!submitted ? (
-          <form onSubmit={handleSubmit} style={{ display: "flex", gap: "0.5rem", justifyContent: "center", flexWrap: "wrap" }}>
+        {!waitlistSubmitted ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!waitlistEmail) return;
+              setWaitlistSubmitted(true);
+            }}
+            style={{ display: "flex", gap: "0.5rem", justifyContent: "center", flexWrap: "wrap" }}
+          >
             <input
               type="email"
               placeholder="deine@email.at"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={waitlistEmail}
+              onChange={(e) => setWaitlistEmail(e.target.value)}
               style={{
                 padding: "1rem 1.5rem",
                 borderRadius: 8,
@@ -51,13 +69,35 @@ export default function App() {
             </button>
           </form>
         ) : (
-          <div style={{ marginTop: "2rem", fontSize: "1.2rem", color: "#8DAA8C" }}>
-            ✅ Du bist auf der Warteliste! Wir melden uns bald.
+          <div style={{ marginTop: "2rem" }}>
+            <div style={{ fontSize: "1.2rem", color: "#8DAA8C", marginBottom: "1rem" }}>
+              ✅ Du bist auf der Warteliste!
+            </div>
+            <button
+              onClick={() => setShowLogin(true)}
+              className="cta"
+              style={{ background: "#8DAA8C" }}
+            >
+              Jetzt einloggen →
+            </button>
           </div>
         )}
-        {error && (
-          <div style={{ marginTop: "1rem", color: "#E8A48C" }}>{error}</div>
-        )}
+        <div style={{ marginTop: "2rem" }}>
+          <button
+            onClick={() => setShowLogin(true)}
+            style={{
+              background: "none",
+              border: "1px solid rgba(255,255,255,0.3)",
+              color: "#fff",
+              padding: "0.75rem 1.5rem",
+              borderRadius: 8,
+              cursor: "pointer",
+              fontSize: "0.95rem",
+            }}
+          >
+            Bereits registriert? Einloggen
+          </button>
+        </div>
       </section>
 
       <section className="features">
