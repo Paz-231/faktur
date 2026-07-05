@@ -3,6 +3,7 @@ import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { UpgradeModal } from "./UpgradeModal";
 import { FileUpload } from "./FileUpload";
+import { CreateInvoiceModal } from "./CreateInvoiceModal";
 
 interface DashboardProps {
   auth: { userId: string; email: string; name: string; plan: string };
@@ -109,13 +110,14 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
 // Dashboard Page
 // ═══════════════════════════════════════════════════════════
 function DashboardPage({ auth, onUpgrade }: { auth: DashboardProps["auth"]; onUpgrade: () => void }) {
+  const [showCreate, setShowCreate] = useState(false);
   return (
     <div className="slide-up">
       <div className="page-header">
         <h1 className="page-title">Willkommen, {auth.name}</h1>
         <div className="page-actions">
           <button className="btn">📥 Eingang</button>
-          <button className="btn btn-primary">+ Neue Rechnung</button>
+          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ Neue Rechnung</button>
         </div>
       </div>
 
@@ -156,7 +158,7 @@ function DashboardPage({ auth, onUpgrade }: { auth: DashboardProps["auth"]; onUp
         <div className="card">
           <h4>Ausgangsrechnungen</h4>
           <p style={{ marginTop: "0.5rem" }}>Noch keine Rechnungen erstellt.</p>
-          <button className="btn btn-sm" style={{ marginTop: "1rem" }}>+ Erste Rechnung</button>
+          <button className="btn btn-sm" style={{ marginTop: "1rem" }} onClick={() => setShowCreate(true)}>+ Erste Rechnung</button>
         </div>
         <div className="card">
           <h4>Eingangsrechnungen</h4>
@@ -174,22 +176,51 @@ function DashboardPage({ auth, onUpgrade }: { auth: DashboardProps["auth"]; onUp
           <button className="btn btn-sm" style={{ marginTop: "1rem" }}>Report ansehen</button>
         </div>
       </div>
+
+      {showCreate && (
+        <CreateInvoiceModal
+          userId={auth.userId}
+          onClose={() => setShowCreate(false)}
+        />
+      )}
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════
-// Invoices Page (Ausgang)
+// Invoices Page (Ausgang) — Live Data + Create Modal
 // ═══════════════════════════════════════════════════════════
 function InvoicesPage({ userId }: { userId: any }) {
+  const [showCreate, setShowCreate] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const invoices = useQuery(api.invoices.list, { userId }) ?? [];
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, { text: string; cls: string }> = {
+      draft: { text: "Entwurf", cls: "badge" },
+      sent: { text: "Gesendet", cls: "badge badge-accent" },
+      paid: { text: "Bezahlt", cls: "badge badge-success" },
+      storno: { text: "Storno", cls: "badge badge-danger" },
+      overdue: { text: "Überfällig", cls: "badge badge-warn" },
+    };
+    const s = map[status] || { text: status, cls: "badge" };
+    return <span className={s.cls}>{s.text}</span>;
+  };
+
+  const money = (v: number) => `€ ${(v || 0).toFixed(2).replace(".", ",")}`;
+
   return (
-    <div className="slide-up">
+    <div className="slide-up" key={refreshKey}>
       <div className="page-header">
         <h1 className="page-title">Ausgangsrechnungen</h1>
         <div className="page-actions">
-          <button className="btn btn-primary">+ Neue Rechnung</button>
+          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
+            + Neue Rechnung
+          </button>
         </div>
       </div>
+
       <div className="table-wrap">
         <table>
           <thead>
@@ -205,18 +236,44 @@ function InvoicesPage({ userId }: { userId: any }) {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td colSpan={8}>
-                <div className="empty-state">
-                  <div className="icon">↗</div>
-                  <h3>Keine Rechnungen</h3>
-                  <p>Erstelle deine erste Rechnung.</p>
-                </div>
-              </td>
-            </tr>
+            {invoices.length === 0 ? (
+              <tr>
+                <td colSpan={8}>
+                  <div className="empty-state">
+                    <div className="icon">↗</div>
+                    <h3>Keine Rechnungen</h3>
+                    <p>Erstelle deine erste Rechnung.</p>
+                    <button className="btn btn-primary btn-sm" style={{ marginTop: "1rem" }} onClick={() => setShowCreate(true)}>
+                      + Neue Rechnung
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              invoices.map((inv: any) => (
+                <tr key={inv._id}>
+                  <td style={{ fontWeight: 500 }}>{inv.number}</td>
+                  <td>{inv.date}</td>
+                  <td>{inv.recipientName}</td>
+                  <td><span className="badge">{inv.type}</span></td>
+                  <td>{money(inv.netAmount)}</td>
+                  <td>{money(inv.vatAmount)}</td>
+                  <td style={{ fontWeight: 600 }}>{money(inv.grossAmount)}</td>
+                  <td>{statusBadge(inv.status)}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
+
+      {showCreate && (
+        <CreateInvoiceModal
+          userId={userId}
+          onClose={() => setShowCreate(false)}
+          onUploaded={() => setRefreshKey(k => k + 1)}
+        />
+      )}
     </div>
   );
 }
