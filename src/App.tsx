@@ -157,31 +157,35 @@ export default function App() {
             <div className="price">0€ <span>/Monat</span></div>
             <ul>
               <li>3 Rechnungen pro Monat</li>
+              <li>3 Aufträge + Angebote</li>
               <li>AT-Honorarnoten + DE-Rechnungen</li>
               <li>Kundenstamm</li>
-              <li>PDF-Export</li>
+              <li>Kleinunternehmer-Logik</li>
+              <li>Storno-Logik</li>
             </ul>
           </div>
           <div className="plan featured">
             <h3>Starter</h3>
-            <div className="price">12€ <span>/Monat</span></div>
+            <div className="price">14,90€ <span>/Monat</span></div>
             <ul>
-              <li>20 Rechnungen pro Monat</li>
-              <li>Foto-Upload + Vision-Scan</li>
+              <li>Unbegrenzte Rechnungen</li>
+              <li>Unbegrenzte Aufträge + Angebote</li>
+              <li>Foto/PDF Upload + AI Vision-Scan</li>
               <li>Mahnwesen (3 Stufen)</li>
-              <li>Eingangsrechnungen</li>
+              <li>Eingangsrechnungen unbegrenzt</li>
               <li>Buchhaltungs-Report (monatlich)</li>
             </ul>
           </div>
           <div className="plan">
             <h3>Pro</h3>
-            <div className="price">29€ <span>/Monat</span></div>
+            <div className="price">29,90€ <span>/Monat</span></div>
             <ul>
-              <li>Unbegrenzte Rechnungen</li>
+              <li>Alles aus Starter</li>
               <li>Email-Abholung (IMAP)</li>
-              <li>Jahresbericht + EÜR</li>
-              <li>DATEV-Export</li>
+              <li>EÜR (§4 Abs3 EStG)</li>
               <li>USt-Voranmeldung-Daten</li>
+              <li>DATEV-Export</li>
+              <li>Jahresbericht</li>
               <li>Mehrere Unternehmen</li>
             </ul>
           </div>

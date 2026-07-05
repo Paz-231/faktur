@@ -2,15 +2,19 @@
 """
 Stripe Setup Script — erstellt Products + Prices für Faktur.
 
+Preise (DACH-konform, zzgl. USt):
+    Free:     0€/Monat
+    Starter:  14,90€/Monat
+    Pro:      29,90€/Monat
+
 Führt dies einmal aus um die Stripe Products anzulegen:
+    export STRIPE_SECRET_KEY=sk_test_...
     python3 scripts/stripe_setup.py
 
 Danach werden die Price IDs ausgegeben — trage sie als
 Convex Environment Variables ein:
-    STRIPE_PRICE_STARTER=price_...
-    STRIPE_PRICE_PRO=price_...
-
-Env: STRIPE_SECRET_KEY
+    npx convex env set STRIPE_PRICE_STARTER price_...
+    npx convex env set STRIPE_PRICE_PRO price_...
 """
 import os
 import sys
@@ -29,16 +33,16 @@ AUTH = (STRIPE_KEY, "")
 PLANS = [
     {
         "name": "Faktur Starter",
-        "description": "20 Rechnungen/Monat, Foto-Upload, Mahnwesen, monatlicher Report",
-        "amount": 1200,  # €12.00
+        "description": "Unbegrenzte Rechnungen + AI Foto-Scan + Mahnwesen + Eingangsrechnungen + monatlicher Report",
+        "amount": 1490,  # €14.90
         "currency": "eur",
         "interval": "month",
         "env_var": "STRIPE_PRICE_STARTER",
     },
     {
         "name": "Faktur Pro",
-        "description": "Unlimited Rechnungen, Email-Abholung, Jahresbericht, DATEV-Export, USt-Voranmeldung",
-        "amount": 2900,  # €29.00
+        "description": "Alles aus Starter + Email-Abholung + EÜR + USt-Voranmeldung + DATEV-Export + Jahresbericht + mehrere Unternehmen",
+        "amount": 2990,  # €29.90
         "currency": "eur",
         "interval": "month",
         "env_var": "STRIPE_PRICE_PRO",
