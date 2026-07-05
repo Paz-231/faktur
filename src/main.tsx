@@ -7,6 +7,10 @@ const convex = new ConvexReactClient(
   import.meta.env.VITE_CONVEX_URL || "https://quick-ox-60.eu-west-1.convex.cloud"
 );
 
+// Set theme from localStorage before render
+const savedTheme = localStorage.getItem("faktur_theme") || "dark";
+document.documentElement.setAttribute("data-theme", savedTheme);
+
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ConvexProvider client={convex}>

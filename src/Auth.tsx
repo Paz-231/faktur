@@ -30,25 +30,25 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0D3B4C" }}>
-      <div style={{ background: "rgba(255,255,255,0.08)", padding: "3rem", borderRadius: 16, maxWidth: 420, width: "90%" }}>
-        <h1 style={{ textAlign: "center", fontSize: "2rem", marginBottom: "0.5rem" }}>Faktur</h1>
-        <p style={{ textAlign: "center", opacity: 0.7, marginBottom: "2rem" }}>Einloggen mit Magic-Link</p>
+    <div className="auth-page">
+      <div className="auth-box">
+        <h1>Faktur<span>.</span></h1>
+        <p>Einloggen mit Magic-Link</p>
 
         {status === "sent" ? (
           <div style={{ textAlign: "center" }}>
-            <div style={{ color: "#8DAA8C", fontSize: "1.1rem", marginBottom: "1rem" }}>
+            <div style={{ color: "var(--success)", fontSize: "1rem", marginBottom: "1rem" }}>
               ✅ Magic-Link gesendet!
             </div>
-            <p style={{ opacity: 0.7, fontSize: "0.9rem" }}>
+            <p style={{ opacity: 0.6, fontSize: "0.8125rem" }}>
               Check dein Postfach: {email}. Der Link ist 15 Minuten gültig.
             </p>
             {error && (
-              <div style={{ marginTop: "1rem", padding: "1rem", background: "rgba(255,255,255,0.05)", borderRadius: 8, wordBreak: "break-all", fontSize: "0.8rem" }}>
+              <div style={{ marginTop: "1rem", padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--border)", wordBreak: "break-all", fontSize: "0.75rem" }}>
                 {error}
               </div>
             )}
-            <button onClick={() => setStatus("idle")} style={{ marginTop: "1.5rem", background: "none", border: "none", color: "#E8A48C", cursor: "pointer", textDecoration: "underline" }}>
+            <button onClick={() => setStatus("idle")} className="btn btn-ghost btn-sm" style={{ marginTop: "1.5rem" }}>
               Andere Email verwenden
             </button>
           </div>
@@ -60,36 +60,18 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={status === "sending"}
-              style={{
-                width: "100%",
-                padding: "1rem 1.5rem",
-                borderRadius: 8,
-                border: "none",
-                fontSize: "1rem",
-                marginBottom: "1rem",
-                background: "rgba(255,255,255,0.95)",
-              }}
+              className="auth-input"
               required
             />
             <button
               type="submit"
               disabled={status === "sending"}
-              style={{
-                width: "100%",
-                padding: "1rem",
-                borderRadius: 8,
-                border: "none",
-                background: "#E8A48C",
-                color: "#0D3B4C",
-                fontWeight: 700,
-                fontSize: "1.1rem",
-                cursor: status === "sending" ? "wait" : "pointer",
-              }}
+              className="auth-btn"
             >
               {status === "sending" ? "Sende..." : "Magic-Link anfordern"}
             </button>
             {error && status === "error" && (
-              <p style={{ color: "#E8A48C", marginTop: "1rem", fontSize: "0.9rem" }}>{error}</p>
+              <p style={{ color: "var(--danger)", marginTop: "0.75rem", fontSize: "0.8125rem", textAlign: "center" }}>{error}</p>
             )}
           </form>
         )}
@@ -115,17 +97,17 @@ export function VerifyPage({ token, onSuccess }: { token: string; onSuccess: () 
   });
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0D3B4C" }}>
-      <div style={{ textAlign: "center" }}>
+    <div className="auth-page">
+      <div className="auth-box" style={{ textAlign: "center" }}>
         {error ? (
           <>
-            <h1 style={{ color: "#E8A48C" }}>❌ Login fehlgeschlagen</h1>
-            <p style={{ opacity: 0.7 }}>{error}</p>
+            <h1 style={{ color: "var(--danger)" }}>❌ Login fehlgeschlagen</h1>
+            <p style={{ opacity: 0.6, marginTop: "0.5rem" }}>{error}</p>
           </>
         ) : (
           <>
-            <h1>Einloggen...</h1>
-            <p style={{ opacity: 0.7 }}>Überprüfe Token...</p>
+            <h1>Faktur<span>.</span></h1>
+            <p>Einloggen...</p>
           </>
         )}
       </div>
