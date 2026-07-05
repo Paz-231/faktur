@@ -31,13 +31,13 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
   };
 
   const navItems = [
-    { id: "dashboard" as Page, icon: "▣", label: "Dashboard" },
-    { id: "analytics" as Page, icon: "📊", label: "Analytics" },
-    { id: "invoices" as Page, icon: "▣", label: "Aufträge" },
-    { id: "incoming" as Page, icon: "↙", label: "Eingang" },
-    { id: "customers" as Page, icon: "●", label: "Kunden" },
-    { id: "reports" as Page, icon: "▤", label: "Berichte" },
-    { id: "settings" as Page, icon: "⚙", label: "Einstellungen" },
+    { id: "dashboard" as Page, icon: "—", label: "Dashboard" },
+    { id: "analytics" as Page, icon: "abox", label: "Analytics" },
+    { id: "invoices" as Page, icon: "—", label: "Aufträge" },
+    { id: "incoming" as Page, icon: "«", label: "Eingang" },
+    { id: "customers" as Page, icon: "·", label: "Kunden" },
+    { id: "reports" as Page, icon: "=", label: "Berichte" },
+    { id: "settings" as Page, icon: "s", label: "Einstellungen" },
   ];
 
   return (
@@ -64,7 +64,7 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
             {auth.email}
           </div>
           <button className="theme-toggle" onClick={toggleTheme}>
-            {theme === "dark" ? "◐" : "◑"}
+            {theme === "dark" ? "●" : "○"}
           </button>
         </div>
         <div style={{ padding: "0 1.5rem", marginTop: "0.5rem" }}>
@@ -74,7 +74,7 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
               onClick={() => setShowUpgrade(true)}
               style={{ width: "100%", justifyContent: "center", marginBottom: "0.5rem" }}
             >
-              ↑ Upgrade
+              » Upgrade
             </button>
           )}
           <button className="btn btn-sm btn-ghost" onClick={onLogout} style={{ width: "100%", justifyContent: "center" }}>
@@ -124,7 +124,7 @@ function DashboardPage({ auth, onUpgrade }: { auth: DashboardProps["auth"]; onUp
       <div className="page-header">
         <h1 className="page-title">Willkommen, {auth.name}</h1>
         <div className="page-actions">
-          <button className="btn">📥 Eingang</button>
+          <button className="btn">Eingang</button>
           <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ Neuer Auftrag</button>
         </div>
       </div>
@@ -135,7 +135,7 @@ function DashboardPage({ auth, onUpgrade }: { auth: DashboardProps["auth"]; onUp
             <h4 style={{ color: "var(--accent)", marginBottom: "0.25rem" }}>Free Plan — 3 Rechnungen/Monat</h4>
             <p style={{ fontSize: "0.8125rem" }}>Upgrade auf Starter (12€) oder Pro (29€) für unbegrenzte Rechnungen.</p>
           </div>
-          <button className="btn btn-primary btn-sm" onClick={onUpgrade}>↑ Upgrade</button>
+          <button className="btn btn-primary btn-sm" onClick={onUpgrade}>» Upgrade</button>
         </div>
       )}
 
@@ -246,7 +246,7 @@ function InvoicesPage({ userId }: { userId: any }) {
               <tr>
                 <td colSpan={7}>
                   <div className="empty-state">
-                    <div className="icon">▣</div>
+                    <div className="icon">—</div>
                     <h3>Keine Aufträge</h3>
                     <p>Erstelle deinen ersten Auftrag.</p>
                     <button className="btn btn-primary btn-sm" style={{ marginTop: "1rem" }} onClick={() => setShowCreate(true)}>
@@ -263,8 +263,8 @@ function InvoicesPage({ userId }: { userId: any }) {
                   <td>{auftrag.recipientName}</td>
                   <td style={{ fontWeight: 600 }}>{money(auftrag.grossAmount)}</td>
                   <td>{statusBadge(auftrag.status)}</td>
-                  <td>{auftrag.angebotId ? "✓" : "—"}</td>
-                  <td>{(auftrag.rechnungIds?.length || 0) > 0 ? `${auftrag.rechnungIds.length}✓` : "—"}</td>
+                  <td>{auftrag.angebotId ? "·" : "—"}</td>
+                  <td>{(auftrag.rechnungIds?.length || 0) > 0 ? `${auftrag.rechnungIds.length}·` : "—"}</td>
                 </tr>
               ))
             )}
@@ -318,7 +318,7 @@ function IncomingPage({ userId }: { userId: any }) {
         <h1 className="page-title">Eingangsrechnungen</h1>
         <div className="page-actions">
           <button className="btn" onClick={() => setShowUpload(!showUpload)}>
-            {showUpload ? "✕ Schließen" : "📷 Foto/PDF hochladen"}
+            {showUpload ? "× Schließen" : " Foto/PDF hochladen"}
           </button>
           <button className="btn btn-primary">+ Manuell erfassen</button>
         </div>
@@ -352,7 +352,7 @@ function IncomingPage({ userId }: { userId: any }) {
               <tr>
                 <td colSpan={8}>
                   <div className="empty-state">
-                    <div className="icon">↙</div>
+                    <div className="icon">«</div>
                     <h3>Keine Eingangsrechnungen</h3>
                     <p>Lade ein Foto hoch oder erfasse manuell.</p>
                   </div>
@@ -412,7 +412,7 @@ function CustomersPage({ userId }: { userId: any }) {
         <h1 className="page-title">Kunden</h1>
         <div className="page-actions">
           <button className="btn btn-primary" onClick={() => setShowAdd(!showAdd)}>
-            {showAdd ? "✕ Schließen" : "+ Neuer Kunde"}
+            {showAdd ? "× Schließen" : "+ Neuer Kunde"}
           </button>
         </div>
       </div>
@@ -463,7 +463,7 @@ function CustomersPage({ userId }: { userId: any }) {
               <tr>
                 <td colSpan={4}>
                   <div className="empty-state">
-                    <div className="icon">●</div>
+                    <div className="icon">·</div>
                     <h3>Keine Kunden</h3>
                     <p>Lege deinen ersten Kunden an.</p>
                     <button className="btn btn-primary btn-sm" style={{ marginTop: "1rem" }} onClick={() => setShowAdd(true)}>

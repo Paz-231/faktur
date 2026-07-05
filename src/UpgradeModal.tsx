@@ -68,7 +68,7 @@ export function UpgradeModal({ auth, onClose }: UpgradeModalProps) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Plan wählen</h2>
-          <button className="btn btn-ghost btn-icon" onClick={onClose}>✕</button>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
           <p style={{ marginBottom: "1.5rem", color: "var(--fg-3)" }}>
@@ -93,7 +93,7 @@ export function UpgradeModal({ auth, onClose }: UpgradeModalProps) {
                 <ul style={{ listStyle: "none", margin: "1rem 0" }}>
                   {plan.features.map((f) => (
                     <li key={f} style={{ padding: "0.25rem 0", fontSize: "0.8125rem", color: "var(--fg-2)" }}>
-                      <span style={{ color: "var(--success)", marginRight: "0.5rem" }}>✓</span>
+                      <span style={{ color: "var(--success)", marginRight: "0.5rem" }}>·</span>
                       {f}
                     </li>
                   ))}

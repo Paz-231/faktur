@@ -83,7 +83,7 @@ export function CustomerDetail({ customerId, userId, onClose, onRefresh }: Custo
         {/* Header */}
         <div className="modal-header">
           <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>{customer.name}</h2>
-          <button className="btn btn-ghost btn-icon" onClick={onClose}>✕</button>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body">

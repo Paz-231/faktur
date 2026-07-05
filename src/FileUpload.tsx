@@ -118,7 +118,7 @@ export function FileUpload({ userId, onUploaded }: FileUploadProps) {
 
         {status === "idle" && (
           <>
-            <div style={{ fontSize: "2rem", marginBottom: "0.5rem", opacity: 0.5 }}>📷</div>
+            <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem", opacity: 0.4, fontFamily: "inherit" }}>upload</div>
             <p style={{ fontSize: "0.8125rem" }}>Foto oder PDF hierher ziehen oder klicken zum Auswählen</p>
             <small style={{ color: "var(--fg-4)" }}>PDF, JPG, PNG, WEBP · max 10MB</small>
           </>
@@ -126,14 +126,14 @@ export function FileUpload({ userId, onUploaded }: FileUploadProps) {
 
         {status === "uploading" && (
           <>
-            <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⬆️</div>
+            <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem", opacity: 0.6 }}>uploading...</div>
             <p style={{ fontSize: "0.8125rem" }}>Lade hoch...</p>
           </>
         )}
 
         {status === "scanning" && (
           <>
-            <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🔍</div>
+            <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem", opacity: 0.6, color: "var(--accent)" }}>scanning...</div>
             <p style={{ fontSize: "0.8125rem" }}>KI scannt Rechnung...</p>
             <small style={{ color: "var(--fg-4)" }}>Daten werden automatisch extrahiert</small>
           </>
@@ -141,14 +141,14 @@ export function FileUpload({ userId, onUploaded }: FileUploadProps) {
 
         {status === "done" && (
           <>
-            <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>✅</div>
+            <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem", color: "var(--success)" }}>done</div>
             <p style={{ fontSize: "0.8125rem", color: "var(--success)" }}>Rechnung hochgeladen und gescannt!</p>
           </>
         )}
 
         {status === "error" && (
           <>
-            <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>❌</div>
+            <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem", color: "var(--danger)" }}>error</div>
             <p style={{ fontSize: "0.8125rem", color: "var(--danger)" }}>{error}</p>
             <small style={{ color: "var(--fg-4)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setStatus("idle"); }}>
               Erneut versuchen

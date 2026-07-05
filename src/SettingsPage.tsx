@@ -230,7 +230,7 @@ export function SettingsPage({ auth }: SettingsPageProps) {
           </select>
         </div>
         <button className="btn btn-primary btn-sm" onClick={handleSaveSettings} disabled={savingSettings} style={{ marginTop: "0.5rem" }}>
-          {savingSettings ? "Speichere..." : settingsSaved ? "✓ Gespeichert" : "Einstellungen speichern"}
+          {savingSettings ? "Speichere..." : settingsSaved ? "· Gespeichert" : "Einstellungen speichern"}
         </button>
       </div>
 
@@ -309,7 +309,7 @@ export function SettingsPage({ auth }: SettingsPageProps) {
         </div>
 
         <button className="btn btn-primary btn-sm" onClick={handleSaveProfile} disabled={savingProfile} style={{ marginTop: "0.5rem" }}>
-          {savingProfile ? "Speichere..." : profileSaved ? "✓ Gespeichert" : "Profil speichern"}
+          {savingProfile ? "Speichere..." : profileSaved ? "· Gespeichert" : "Profil speichern"}
         </button>
       </div>
 
@@ -353,7 +353,7 @@ export function SettingsPage({ auth }: SettingsPageProps) {
                   <input className="input" value={newTaxReason} onChange={(e) => setNewTaxReason(e.target.value)} placeholder="Überschreitung Kleinunternehmergrenze" />
                 </div>
                 <div style={{ padding: "0.75rem", background: "var(--surface)", border: "1px solid var(--warn)", fontSize: "0.75rem", color: "var(--fg-3)", marginBottom: "0.75rem" }}>
-                  ⚠️ Rechnungen vor dem Wechseldatum behalten den alten Status. Rechnungen danach verwenden den neuen.
+                  Rechnungen vor dem Wechseldatum behalten den alten Status. Rechnungen danach verwenden den neuen.
                 </div>
                 <button className="btn btn-primary btn-sm" onClick={handleTaxChange} disabled={savingTax}>
                   {savingTax ? "Speichere..." : "Steuerstatus wechseln"}

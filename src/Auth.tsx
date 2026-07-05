@@ -38,7 +38,7 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
         {status === "sent" ? (
           <div style={{ textAlign: "center" }}>
             <div style={{ color: "var(--success)", fontSize: "1rem", marginBottom: "1rem" }}>
-              ✅ Magic-Link gesendet!
+              Magic-Link gesendet!
             </div>
             <p style={{ opacity: 0.6, fontSize: "0.8125rem" }}>
               Check dein Postfach: {email}. Der Link ist 15 Minuten gültig.
@@ -101,7 +101,7 @@ export function VerifyPage({ token, onSuccess }: { token: string; onSuccess: () 
       <div className="auth-box" style={{ textAlign: "center" }}>
         {error ? (
           <>
-            <h1 style={{ color: "var(--danger)" }}>❌ Login fehlgeschlagen</h1>
+            <h1 style={{ color: "var(--danger)" }}>Login fehlgeschlagen</h1>
             <p style={{ opacity: 0.6, marginTop: "0.5rem" }}>{error}</p>
           </>
         ) : (

@@ -135,7 +135,7 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
               Auftrag · {auftrag.date} · {statusBadge(auftrag.status)}
             </div>
           </div>
-          <button className="btn btn-ghost btn-icon" onClick={onClose}>✕</button>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body">
@@ -206,7 +206,7 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
           {auftrag.status === "draft" && (
             <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem" }}>
               <button className="btn btn-primary" onClick={handleConfirm} disabled={loading === "confirm"}>
-                {loading === "confirm" ? "Bestätige..." : "✓ Auftrag bestätigen"}
+                {loading === "confirm" ? "Bestätige..." : "· Auftrag bestätigen"}
               </button>
               <button className="btn" onClick={handleDiscard} disabled={loading === "discard"} style={{ color: "var(--danger)" }}>
                 {loading === "discard" ? "Verwerfe..." : "Verwerfen"}
@@ -215,7 +215,7 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
           )}
           {auftrag.status === "confirmed" && (
             <div style={{ marginBottom: "1.5rem", padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--success)", fontSize: "0.8125rem" }}>
-              ✅ Auftrag bestätigt am {auftrag.confirmedDate}
+              Auftrag bestätigt am {auftrag.confirmedDate}
               {settings?.rechnungMode === "auto" && " · Rechnung automatisch generiert"}
             </div>
           )}
@@ -245,7 +245,7 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
               </div>
               {angebot.status === "draft" && (
                 <button className="btn btn-sm" style={{ marginTop: "0.5rem" }} onClick={handleAngebotSend} disabled={loading === "angebot-send"}>
-                  {loading === "angebot-send" ? "Sende..." : "↗ Angebot versenden"}
+                  {loading === "angebot-send" ? "Sende..." : "» Angebot versenden"}
                 </button>
               )}
             </div>

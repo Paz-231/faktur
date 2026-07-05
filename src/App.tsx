@@ -71,14 +71,14 @@ export default function App() {
         ) : (
           <div style={{ marginTop: "2rem" }}>
             <div style={{ fontSize: "1.2rem", color: "#8DAA8C", marginBottom: "1rem" }}>
-              ✅ Du bist auf der Warteliste!
+              Du bist auf der Warteliste!
             </div>
             <button
               onClick={() => setShowLogin(true)}
               className="cta"
               style={{ background: "#8DAA8C" }}
             >
-              Jetzt einloggen →
+              Jetzt einloggen »
             </button>
           </div>
         )}
@@ -102,7 +102,7 @@ export default function App() {
 
       <section className="features">
         <div className="feature">
-          <h3>🎤 Voice & Foto-Eingabe</h3>
+          <h3>Voice &amp; Foto-Eingabe</h3>
           <p>Diktiere deine Rechnung oder fotografiere den Stundenzettel. KI extrahiert alle Daten automatisch.</p>
         </div>
         <div className="feature">
@@ -110,19 +110,19 @@ export default function App() {
           <p>AT-Honorarnoten mit §6 Abs1 Z27 UStG. DE-Rechnungen mit §19 UStG. Kleinunternehmer-Regelung automatisch.</p>
         </div>
         <div className="feature">
-          <h3>📊 Buchhaltungs-Report</h3>
+          <h3>Buchhaltungs-Report</h3>
           <p>EÜR nach §4 Abs3 EStG, USt-Voranmeldung, DATEV-Export. Monatlich und jährlich. Steuerberater-fertig.</p>
         </div>
         <div className="feature">
-          <h3>📮 Email-Abholung</h3>
+          <h3>Email-Abholung</h3>
           <p>Rechnungen an eine spezielle Email-Adresse werden automatisch abgeholt, gescannt und abgelegt.</p>
         </div>
         <div className="feature">
-          <h3>🔔 Mahnwesen</h3>
+          <h3>Mahnwesen</h3>
           <p>Automatische Zahlungserinnerungen, 1. und 2. Mahnung. Lückenloser Rechnungsnummern-Kreis.</p>
         </div>
         <div className="feature">
-          <h3>🔒 Lückenlos</h3>
+          <h3>Lückenlos</h3>
           <p>Rechnungsnummern sind atomar, fortlaufend, nie wiederverwendet. Jede Storno bekommt eine Storno-Rechnung.</p>
         </div>
       </section>

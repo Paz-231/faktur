@@ -118,7 +118,7 @@ export function CreateInvoiceModal({ userId, onClose, onCreated }: CreateInvoice
       });
 
       // Auftrag created as draft. User can:
-      // - Confirm it (from Auftrag detail) → if auto mode, rechnung is generated
+      // - Confirm it (from Auftrag detail) » if auto mode, rechnung is generated
       // - Create Angebot from it (from Auftrag detail)
       // - Create Rechnung manually (from Auftrag detail)
 
@@ -138,13 +138,13 @@ export function CreateInvoiceModal({ userId, onClose, onCreated }: CreateInvoice
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
         <div className="modal-header">
           <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Neuer Auftrag</h2>
-          <button className="btn btn-ghost btn-icon" onClick={onClose}>✕</button>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body">
           {/* Flow Info */}
           <div style={{ padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--border)", marginBottom: "1rem", fontSize: "0.75rem", color: "var(--fg-3)" }}>
-            📋 Flow: Auftrag wird erstellt. Rechnung kann später aus dem Auftrag generiert werden.
+            Flow: Auftrag wird erstellt. Rechnung kann später aus dem Auftrag generiert werden.
           </div>
 
           {/* Type */}
@@ -221,7 +221,7 @@ export function CreateInvoiceModal({ userId, onClose, onCreated }: CreateInvoice
               </div>
               <div>
                 {items.length > 1 && (
-                  <button className="btn btn-ghost btn-icon" onClick={() => removeItem(idx)} style={{ color: "var(--danger)" }}>✕</button>
+                  <button className="btn btn-ghost btn-icon" onClick={() => removeItem(idx)} style={{ color: "var(--danger)" }}>×</button>
                 )}
               </div>
             </div>
