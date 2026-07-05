@@ -7,13 +7,14 @@ import { CreateInvoiceModal } from "./CreateInvoiceModal";
 import { AuftragDetail } from "./AuftragDetail";
 import { CustomerDetail } from "./CustomerDetail";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
+import { SettingsPage } from "./SettingsPage";
 
 interface DashboardProps {
   auth: { userId: string; email: string; name: string; plan: string };
   onLogout: () => void;
 }
 
-type Page = "dashboard" | "invoices" | "incoming" | "customers" | "reports" | "analytics";
+type Page = "dashboard" | "analytics" | "invoices" | "incoming" | "customers" | "reports" | "settings";
 
 export function Dashboard({ auth, onLogout }: DashboardProps) {
   const [page, setPage] = useState<Page>("dashboard");
@@ -36,6 +37,7 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
     { id: "incoming" as Page, icon: "↙", label: "Eingang" },
     { id: "customers" as Page, icon: "●", label: "Kunden" },
     { id: "reports" as Page, icon: "▤", label: "Berichte" },
+    { id: "settings" as Page, icon: "⚙", label: "Einstellungen" },
   ];
 
   return (
@@ -89,6 +91,7 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
         {page === "incoming" && <IncomingPage userId={auth.userId as any} />}
         {page === "customers" && <CustomersPage userId={auth.userId as any} />}
         {page === "reports" && <ReportsPage />}
+        {page === "settings" && <SettingsPage auth={auth} />}
       </main>
 
       {/* Bottom Nav — Mobile */}
