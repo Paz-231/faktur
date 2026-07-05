@@ -7,7 +7,7 @@ interface AuthState {
   plan: string | null;
 }
 
-const AUTH_KEY = "faktur_auth";
+const AUTH_KEY = "faktox_auth";
 
 export function useAuth() {
   const [auth, setAuth] = useState<AuthState>(() => {

@@ -32,7 +32,7 @@ export function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   return (
     <div className="auth-page">
       <div className="auth-box">
-        <h1>Faktur<span>.</span></h1>
+        <h1>Faktox<span>.</span></h1>
         <p>Einloggen mit Magic-Link</p>
 
         {status === "sent" ? (
@@ -88,7 +88,7 @@ export function VerifyPage({ token, onSuccess }: { token: string; onSuccess: () 
     (async () => {
       try {
         const result = await verifyMagicLink({ token });
-        localStorage.setItem("faktur_auth", JSON.stringify(result));
+        localStorage.setItem("faktox_auth", JSON.stringify(result));
         onSuccess();
       } catch (err: any) {
         setError(err.message || "Token ungültig");
@@ -106,7 +106,7 @@ export function VerifyPage({ token, onSuccess }: { token: string; onSuccess: () 
           </>
         ) : (
           <>
-            <h1>Faktur<span>.</span></h1>
+            <h1>Faktox<span>.</span></h1>
             <p>Einloggen...</p>
           </>
         )}

@@ -170,14 +170,14 @@ export const sendMagicLinkEmail = internalMutation({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL || "Faktur <noreply@faktur.app>",
+        from: process.env.RESEND_FROM_EMAIL || "Faktox <noreply@faktox.app>",
         to: args.email,
-        subject: "Dein Faktur Login-Link",
+        subject: "Dein Faktox Login-Link",
         html: `
           <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 2rem;">
-            <h1 style="color: #0D3B4C;">Faktur Login</h1>
+            <h1 style="color: #0D3B4C;">Faktox Login</h1>
             <p>Hallo ${args.userName},</p>
-            <p>Klicke auf den folgenden Link um dich bei Faktur einzuloggen:</p>
+            <p>Klicke auf den folgenden Link um dich bei Faktox einzuloggen:</p>
             <p>
               <a href="${args.magicLink}"
                  style="display: inline-block; background: #E8A48C; color: #0D3B4C; padding: 1rem 2rem; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 1rem 0;">

@@ -35,7 +35,7 @@ export default function App() {
   return (
     <div className="container">
       <section className="hero">
-        <h1>Faktur<span>.</span></h1>
+        <h1>Faktox<span>.</span></h1>
         <p>
           DACH Rechnungs-SaaS mit KI. Sprich oder fotografiere — wir erstellen deine
           Rechnung. AT-Honorarnoten, DE-Rechnungen, automatisches Mahnwesen,
@@ -193,7 +193,7 @@ export default function App() {
       </section>
 
       <footer>
-        <p>Faktur — DACH Rechnungs-SaaS mit KI<br />
+        <p>Faktox — DACH Rechnungs-SaaS mit KI<br />
         © 2026 maighty Labs. Keine Steuerberatung. Alle Rechte vorbehalten.</p>
       </footer>
     </div>

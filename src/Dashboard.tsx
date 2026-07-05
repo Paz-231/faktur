@@ -18,13 +18,13 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
   const [page, setPage] = useState<Page>("dashboard");
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">(
-    () => (localStorage.getItem("faktur_theme") as "dark" | "light") || "dark"
+    () => (localStorage.getItem("faktox_theme") as "dark" | "light") || "dark"
   );
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
-    localStorage.setItem("faktur_theme", next);
+    localStorage.setItem("faktox_theme", next);
     document.documentElement.setAttribute("data-theme", next);
   };
 
@@ -41,7 +41,7 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
       {/* Sidebar — Desktop */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          Faktur<span>.</span>
+          Faktox<span>.</span>
         </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => (

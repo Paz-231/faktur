@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stripe Setup Script — erstellt Products + Prices für Faktur.
+Stripe Setup Script — erstellt Products + Prices für Faktox.
 
 Preise (DACH-konform, zzgl. USt):
     Free:     0€/Monat
@@ -32,7 +32,7 @@ AUTH = (STRIPE_KEY, "")
 
 PLANS = [
     {
-        "name": "Faktur Starter",
+        "name": "Faktox Starter",
         "description": "Unbegrenzte Rechnungen + AI Foto-Scan + Mahnwesen + Eingangsrechnungen + monatlicher Report",
         "amount": 1490,  # €14.90
         "currency": "eur",
@@ -40,7 +40,7 @@ PLANS = [
         "env_var": "STRIPE_PRICE_STARTER",
     },
     {
-        "name": "Faktur Pro",
+        "name": "Faktox Pro",
         "description": "Alles aus Starter + Email-Abholung + EÜR + USt-Voranmeldung + DATEV-Export + Jahresbericht + mehrere Unternehmen",
         "amount": 2990,  # €29.90
         "currency": "eur",
@@ -49,7 +49,7 @@ PLANS = [
     },
 ]
 
-print("🔑 Stripe Setup für Faktur")
+print("🔑 Stripe Setup für Faktox")
 print("=" * 50)
 
 for plan in PLANS:

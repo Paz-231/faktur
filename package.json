@@ -1,7 +1,7 @@
 {
-  "name": "rechnung-saas",
+  "name": "faktox",
   "version": "1.0.0",
-  "description": "DACH Rechnungs-SaaS — AT-Honorarnoten + DE-Rechnungen, Foto-Scan, Buchhaltungs-Report",
+  "description": "Faktox — DACH Rechnungs-SaaS mit KI. AT-Honorarnoten + DE-Rechnungen, Foto-Scan, Buchhaltungs-Report. Domain: faktox.online",
   "type": "module",
   "scripts": {
     "dev": "vite",

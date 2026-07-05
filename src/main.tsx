@@ -8,7 +8,7 @@ const convex = new ConvexReactClient(
 );
 
 // Set theme from localStorage before render
-const savedTheme = localStorage.getItem("faktur_theme") || "dark";
+const savedTheme = localStorage.getItem("faktox_theme") || "dark";
 document.documentElement.setAttribute("data-theme", savedTheme);
 
 createRoot(document.getElementById("root")!).render(
