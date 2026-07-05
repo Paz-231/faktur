@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "convex/react";
-import { api } from "./convex/_generated/api";
+import { api } from "../convex/_generated/api";
 import { UpgradeModal } from "./UpgradeModal";
+import { FileUpload } from "./FileUpload";
 
 interface DashboardProps {
   auth: { userId: string; email: string; name: string; plan: string };
@@ -221,18 +222,46 @@ function InvoicesPage({ userId }: { userId: any }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Incoming Page (Eingang)
+// Incoming Page (Eingang) — mit File Upload + Live Data
 // ═══════════════════════════════════════════════════════════
 function IncomingPage({ userId }: { userId: any }) {
+  const [showUpload, setShowUpload] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const invoices = useQuery(api.incoming.list, { userId }) ?? [];
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, { text: string; class: string }> = {
+      open: { text: "Offen", class: "badge" },
+      paid: { text: "Bezahlt", class: "badge badge-success" },
+      pending_scan: { text: "Scannen...", class: "badge badge-accent" },
+      scan_failed: { text: "Scan failed", class: "badge badge-danger" },
+    };
+    const s = map[status] || { text: status, class: "badge" };
+    return <span className={s.class}>{s.text}</span>;
+  };
+
   return (
-    <div className="slide-up">
+    <div className="slide-up" key={refreshKey}>
       <div className="page-header">
         <h1 className="page-title">Eingangsrechnungen</h1>
         <div className="page-actions">
-          <button className="btn">📷 Foto hochladen</button>
-          <button className="btn btn-primary">+ Erfassen</button>
+          <button className="btn" onClick={() => setShowUpload(!showUpload)}>
+            {showUpload ? "✕ Schließen" : "📷 Foto/PDF hochladen"}
+          </button>
+          <button className="btn btn-primary">+ Manuell erfassen</button>
         </div>
       </div>
+
+      {showUpload && (
+        <div style={{ marginBottom: "1.5rem" }}>
+          <FileUpload
+            userId={userId}
+            onUploaded={() => setRefreshKey(k => k + 1)}
+          />
+        </div>
+      )}
+
       <div className="table-wrap">
         <table>
           <thead>
@@ -248,15 +277,30 @@ function IncomingPage({ userId }: { userId: any }) {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td colSpan={8}>
-                <div className="empty-state">
-                  <div className="icon">↙</div>
-                  <h3>Keine Eingangsrechnungen</h3>
-                  <p>Lade ein Foto hoch oder erfasse manuell.</p>
-                </div>
-              </td>
-            </tr>
+            {invoices.length === 0 ? (
+              <tr>
+                <td colSpan={8}>
+                  <div className="empty-state">
+                    <div className="icon">↙</div>
+                    <h3>Keine Eingangsrechnungen</h3>
+                    <p>Lade ein Foto hoch oder erfasse manuell.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              invoices.map((inv: any) => (
+                <tr key={inv._id}>
+                  <td>{inv.number}</td>
+                  <td>{inv.date}</td>
+                  <td>{inv.issuerName}</td>
+                  <td>{inv.category || "—"}</td>
+                  <td>€ {inv.netAmount?.toFixed(2) || "0,00"}</td>
+                  <td>€ {inv.vatAmount?.toFixed(2) || "0,00"}</td>
+                  <td>€ {inv.grossAmount?.toFixed(2) || "0,00"}</td>
+                  <td>{statusBadge(inv.status)}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

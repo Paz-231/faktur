@@ -156,7 +156,7 @@ export default defineSchema({
     iban: v.optional(v.string()),
     bic: v.optional(v.string()),
     // Status
-    status: v.string(), // open, paid
+    status: v.string(), // open, paid, pending_scan, scan_failed
     paidDate: v.optional(v.string()),
     paidAmount: v.optional(v.number()),
     // Dateien

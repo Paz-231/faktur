@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "convex/react";
-import { api } from "./convex/_generated/api";
+import { api } from "../convex/_generated/api";
 import { useAuth } from "./useAuth";
 import { LoginPage, VerifyPage } from "./Auth";
 import { Dashboard } from "./Dashboard";

@@ -10,6 +10,7 @@
 
 import type * as auth from "../auth.js";
 import type * as customers from "../customers.js";
+import type * as fileUpload from "../fileUpload.js";
 import type * as incoming from "../incoming.js";
 import type * as invoices from "../invoices.js";
 import type * as profile from "../profile.js";
@@ -25,6 +26,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   customers: typeof customers;
+  fileUpload: typeof fileUpload;
   incoming: typeof incoming;
   invoices: typeof invoices;
   profile: typeof profile;
