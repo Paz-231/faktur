@@ -19,6 +19,7 @@ import type * as profile from "../profile.js";
 import type * as settings from "../settings.js";
 import type * as skillDownload from "../skillDownload.js";
 import type * as skillDownloadDB from "../skillDownloadDB.js";
+import type * as skillVersions from "../skillVersions.js";
 import type * as stripe from "../stripe.js";
 import type * as waitlist from "../waitlist.js";
 
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   settings: typeof settings;
   skillDownload: typeof skillDownload;
   skillDownloadDB: typeof skillDownloadDB;
+  skillVersions: typeof skillVersions;
   stripe: typeof stripe;
   waitlist: typeof waitlist;
 }>;

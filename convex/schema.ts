@@ -283,6 +283,19 @@ export default defineSchema({
     downloadedAt: v.optional(v.number()),
   }).index("token", ["token"]).index("email", ["email"]),
 
+  // ─── Skill Versions (Versionierung + Download) ────────────
+  skillVersions: defineTable({
+    version: v.string(), // "1.0.0", "1.1.0", etc.
+    description: v.string(), // what changed
+    storageId: v.id("_storage"), // Convex file storage
+    fileName: v.string(), // "faktox-invoice-agent-1.0.0.zip"
+    sizeBytes: v.number(),
+    checksum: v.string(), // SHA-256 for integrity
+    isLatest: v.boolean(), // true = current latest version
+    releaseNotes: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("isLatest", ["isLatest"]).index("version", ["version"]),
+
   // ─── Settings (pro User) ───────────────────────────────────
   settings: defineTable({
     userId: v.id("users"),

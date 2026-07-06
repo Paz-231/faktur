@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
+import { SkillDownloadPage } from "./SkillDownloadPage";
 
 export default function App() {
   const [email, setEmail] = useState("");
@@ -7,6 +8,22 @@ export default function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [skillEmail, setSkillEmail] = useState("");
   const [skillBuying, setSkillBuying] = useState(false);
+  const [downloadToken, setDownloadToken] = useState<string | null>(null);
+
+  // Check URL hash for download token (from email link)
+  useEffect(() => {
+    const checkHash = () => {
+      const hash = window.location.hash;
+      if (hash.includes("skill-download") || hash.includes("skill-success")) {
+        const params = new URLSearchParams(hash.split("?")[1] || "");
+        const token = params.get("token");
+        if (token) setDownloadToken(token);
+      }
+    };
+    checkHash();
+    window.addEventListener("hashchange", checkHash);
+    return () => window.removeEventListener("hashchange", checkHash);
+  }, []);
 
   const containerRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll();
@@ -483,6 +500,11 @@ export default function App() {
       {/* Login redirect */}
       {showLogin && (
         <LoginRedirect />
+      )}
+
+      {/* Download page for skill buyers */}
+      {downloadToken && (
+        <SkillDownloadPage token={downloadToken} />
       )}
     </div>
   );
