@@ -99,7 +99,69 @@ export default function App() {
           <h2 className="section-title">Alles drin. Nichts zu viel.</h2>
           <p className="section-subtitle">Was Faktox von Excel und anderen Tools unterscheidet.</p>
 
-          <div className="features-grid">
+          {/* Dashboard Mockup */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="mockup">
+              <div className="mockup-bar">
+                <div className="mockup-dot"></div>
+                <div className="mockup-dot"></div>
+                <div className="mockup-dot"></div>
+                <span className="mockup-url">faktox.online/dashboard</span>
+              </div>
+              <div className="mockup-body">
+                <div className="mockup-sidebar">
+                  <div className="mockup-sidebar-nav">
+                    <div className="mockup-sidebar-item active"><span className="mockup-sidebar-icon"></span>Dashboard</div>
+                    <div className="mockup-sidebar-item"><span className="mockup-sidebar-icon"></span>Analytics</div>
+                    <div className="mockup-sidebar-item"><span className="mockup-sidebar-icon"></span>Aufträge</div>
+                    <div className="mockup-sidebar-item"><span className="mockup-sidebar-icon"></span>Eingang</div>
+                    <div className="mockup-sidebar-item"><span className="mockup-sidebar-icon"></span>Kunden</div>
+                    <div className="mockup-sidebar-item"><span className="mockup-sidebar-icon"></span>Berichte</div>
+                  </div>
+                  <div className="mockup-table">
+                    <div className="mockup-stats">
+                      <div className="mockup-stat">
+                        <div className="mockup-stat-label">Einnahmen</div>
+                        <div className="mockup-stat-value accent">€ 2.400</div>
+                      </div>
+                      <div className="mockup-stat">
+                        <div className="mockup-stat-label">Ausgaben</div>
+                        <div className="mockup-stat-value">€ 879</div>
+                      </div>
+                      <div className="mockup-stat">
+                        <div className="mockup-stat-label">Gewinn</div>
+                        <div className="mockup-stat-value">€ 1.521</div>
+                      </div>
+                      <div className="mockup-stat">
+                        <div className="mockup-stat-label">USt-Saldo</div>
+                        <div className="mockup-stat-value">€ -488</div>
+                      </div>
+                    </div>
+                    <div className="mockup-table-header">
+                      <span>Nummer</span><span>Datum</span><span>Kunde</span><span>Betrag</span><span>Status</span>
+                    </div>
+                    <div className="mockup-table-row">
+                      <span className="num">RE-2026-000001</span><span>05.07.2026</span><span>Herbert Thaler</span><span className="amount">€ 900,00</span><span><span className="mockup-badge success">Bezahlt</span></span>
+                    </div>
+                    <div className="mockup-table-row">
+                      <span className="num">RE-2026-000002</span><span>08.07.2026</span><span>TechSupply GmbH</span><span className="amount">€ 1.500,00</span><span><span className="mockup-badge accent">Gesendet</span></span>
+                    </div>
+                    <div className="mockup-table-row">
+                      <span className="num">RE-2026-000003</span><span>12.07.2026</span><span>maighty Labs</span><span className="amount">€ 750,00</span><span><span className="mockup-badge">Entwurf</span></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Feature cards with individual mockups */}
+          <div className="features-grid" style={{ marginTop: "2.5rem" }}>
             {[
               { label: "AI", title: "Foto & Voice-Eingabe", desc: "Fotografiere den Stundenzettel oder diktiere die Rechnung. KI extrahiert alle Daten automatisch." },
               { label: "DACH", title: "AT & DE konform", desc: "Honorarnoten mit §6 Abs1 Z27 UStG. DE-Rechnungen mit §19 UStG. Kleinunternehmer-Logik automatisch." },
@@ -135,7 +197,79 @@ export default function App() {
         >
           <h2 className="section-title">Warum nicht einfach Excel?</h2>
           <p className="section-subtitle">Vier Gründe warum Faktox Rechnungsstellung sicherer macht.</p>
-          <div className="moat-grid">
+
+          {/* Analytics + Upload Mockups */}
+          <div className="mockup-row">
+            {/* Analytics Mockup */}
+            <motion.div
+              className="mockup"
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4 }}
+            >
+              <div className="mockup-bar">
+                <div className="mockup-dot"></div>
+                <div className="mockup-dot"></div>
+                <div className="mockup-dot"></div>
+                <span className="mockup-url">faktox.online/analytics</span>
+              </div>
+              <div className="mockup-body">
+                <div className="mockup-stats">
+                  <div className="mockup-stat">
+                    <div className="mockup-stat-label">Jahresgewinn</div>
+                    <div className="mockup-stat-value accent">€ 7.521</div>
+                  </div>
+                  <div className="mockup-stat">
+                    <div className="mockup-stat-label">USt-Saldo</div>
+                    <div className="mockup-stat-value">€ -488</div>
+                  </div>
+                </div>
+                <div className="mockup-chart">
+                  <div className="mockup-bar-chart gray" style={{ height: "20%" }}></div>
+                  <div className="mockup-bar-chart" style={{ height: "45%" }}></div>
+                  <div className="mockup-bar-chart gray" style={{ height: "15%" }}></div>
+                  <div className="mockup-bar-chart" style={{ height: "70%" }}></div>
+                  <div className="mockup-bar-chart" style={{ height: "55%" }}></div>
+                  <div className="mockup-bar-chart" style={{ height: "90%" }}></div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Upload Mockup */}
+            <motion.div
+              className="mockup"
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4 }}
+            >
+              <div className="mockup-bar">
+                <div className="mockup-dot"></div>
+                <div className="mockup-dot"></div>
+                <div className="mockup-dot"></div>
+                <span className="mockup-url">faktox.online/eingang</span>
+              </div>
+              <div className="mockup-body">
+                <div className="mockup-upload">
+                  <div className="mockup-upload-text">Foto oder PDF hierher ziehen</div>
+                  <div style={{ fontSize: "0.5625rem", color: "var(--fg-4)", marginTop: "0.5rem" }}>PDF, JPG, PNG · max 10MB</div>
+                </div>
+                <div className="mockup-table-header">
+                  <span>Lieferant</span><span>Betrag</span><span>Status</span>
+                </div>
+                <div className="mockup-table-row" style={{ gridTemplateColumns: "1fr 0.8fr 0.6fr" }}>
+                  <span>Amazon Web Services</span><span className="amount">€ 89,50</span><span><span className="mockup-badge success">Bezahlt</span></span>
+                </div>
+                <div className="mockup-table-row" style={{ gridTemplateColumns: "1fr 0.8fr 0.6fr" }}>
+                  <span>OpenRouter</span><span className="amount">€ 45,00</span><span><span className="mockup-badge accent">Offen</span></span>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Moat items */}
+          <div className="moat-grid" style={{ marginTop: "2.5rem" }}>
             {[
               { title: "UID-Pflicht-Prüfung", desc: "USt-pflichtig ohne UID? Rechnung wird blockiert. Kein Steuerausweis ohne UID-Nummer." },
               { title: "Steuerstatus-Wechsel", desc: "Vom Kleinunternehmer zur USt-Pflicht. System erkennt das Datum und wendet den korrekten Steuersatz an." },
