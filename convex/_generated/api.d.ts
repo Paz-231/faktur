@@ -17,6 +17,8 @@ import type * as incoming from "../incoming.js";
 import type * as invoices from "../invoices.js";
 import type * as profile from "../profile.js";
 import type * as settings from "../settings.js";
+import type * as skillDownload from "../skillDownload.js";
+import type * as skillDownloadDB from "../skillDownloadDB.js";
 import type * as stripe from "../stripe.js";
 import type * as waitlist from "../waitlist.js";
 
@@ -36,6 +38,8 @@ declare const fullApi: ApiFromModules<{
   invoices: typeof invoices;
   profile: typeof profile;
   settings: typeof settings;
+  skillDownload: typeof skillDownload;
+  skillDownloadDB: typeof skillDownloadDB;
   stripe: typeof stripe;
   waitlist: typeof waitlist;
 }>;

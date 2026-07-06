@@ -274,6 +274,15 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("userId_year", ["userId", "year"]),
 
+  // ─── Skill Downloads (99€ einmalig) ────────────────────────
+  skillDownloads: defineTable({
+    email: v.string(),
+    token: v.string(), // download token
+    sessionId: v.string(), // Stripe session ID
+    createdAt: v.number(),
+    downloadedAt: v.optional(v.number()),
+  }).index("token", ["token"]).index("email", ["email"]),
+
   // ─── Settings (pro User) ───────────────────────────────────
   settings: defineTable({
     userId: v.id("users"),

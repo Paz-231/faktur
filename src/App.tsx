@@ -5,6 +5,8 @@ export default function App() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [skillEmail, setSkillEmail] = useState("");
+  const [skillBuying, setSkillBuying] = useState(false);
 
   const containerRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll();
@@ -18,6 +20,28 @@ export default function App() {
   // Hero parallax
   const heroY = useTransform(smoothProgress, [0, 0.3], ["0%", "30%"]);
   const heroOpacity = useTransform(smoothProgress, [0, 0.2], [1, 0]);
+
+  const handleSkillBuy = async () => {
+    if (!skillEmail) return;
+    setSkillBuying(true);
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_CONVEX_URL}/http/createSkillCheckout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: skillEmail }),
+      });
+      const data = await resp.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert("Stripe noch nicht konfiguriert. Kontaktiere paz@faktox.online");
+      }
+    } catch {
+      alert("Fehler beim Verbinden mit Stripe");
+    } finally {
+      setSkillBuying(false);
+    }
+  };
 
   return (
     <div className="landing">
@@ -342,6 +366,98 @@ export default function App() {
                 </button>
               </motion.div>
             ))}
+          </div>
+        </motion.section>
+
+        {/* Skill Section */}
+        <motion.section
+          className="section"
+          id="skill"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.5 }}
+        >
+          <h2 className="section-title">Faktox als Skill</h2>
+          <p className="section-subtitle">Der komplette Rechnungs-Agent als Skill für Claude Code, Cursor & Co.</p>
+
+          <div className="skill-card">
+            <div className="skill-header">
+              <div>
+                <span className="feature-label">FÜR DEVELOPER</span>
+                <h3 style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: "0.5rem" }}>Faktox Invoice Agent</h3>
+                <p style={{ fontSize: "0.875rem", color: "var(--fg-2)", marginTop: "0.5rem" }}>
+                  13 Python-Scripts + SKILL.md + Templates. DACH-konform, mit AI Foto-Scan,
+                  Mahnwesen, Buchhaltungs-Report. Installiere es in deinem AI-Assistenten
+                  und erstelle Rechnungen per Voice oder Text.
+                </p>
+              </div>
+              <div className="skill-price">99€<span>einmalig</span></div>
+            </div>
+
+            <div className="skill-features">
+              <div className="skill-feature">
+                <span className="skill-check">—</span>
+                <span>13 Production-Scripts (Python)</span>
+              </div>
+              <div className="skill-feature">
+                <span className="skill-check">—</span>
+                <span>AT-Honorarnoten + DE-Rechnungen</span>
+              </div>
+              <div className="skill-feature">
+                <span className="skill-check">—</span>
+                <span>AI Foto-Scan (Vision API)</span>
+              </div>
+              <div className="skill-feature">
+                <span className="skill-check">—</span>
+                <span>Lückenloser Nummernkreis + Storno</span>
+              </div>
+              <div className="skill-feature">
+                <span className="skill-check">—</span>
+                <span>Steuerstatus-Wechsel (Kleinunternehmer → USt-pflichtig)</span>
+              </div>
+              <div className="skill-feature">
+                <span className="skill-check">—</span>
+                <span>Mahnwesen (3 Stufen)</span>
+              </div>
+              <div className="skill-feature">
+                <span className="skill-check">—</span>
+                <span>Buchhaltungs-Report (EÜR, UStVA, DATEV)</span>
+              </div>
+              <div className="skill-feature">
+                <span className="skill-check">—</span>
+                <span>Eingangsrechnungen + Email-Abholung</span>
+              </div>
+              <div className="skill-feature">
+                <span className="skill-check">—</span>
+                <span>Komplette SKILL.md mit Anleitung</span>
+              </div>
+              <div className="skill-feature">
+                <span className="skill-check">—</span>
+                <span>JSON Templates (AT + DE)</span>
+              </div>
+              <div className="skill-feature">
+                <span className="skill-check">—</span>
+                <span>Einzelplatz-Lizenz, sofort downloadbar</span>
+              </div>
+            </div>
+
+            <div className="skill-cta">
+              <input
+                className="input"
+                type="email"
+                placeholder="deine@email.at"
+                value={skillEmail}
+                onChange={(e) => setSkillEmail(e.target.value)}
+              />
+              <button className="btn btn-primary" onClick={handleSkillBuy} disabled={skillBuying}>
+                {skillBuying ? "Weiterleitung..." : "Jetzt kaufen — 99€"}
+              </button>
+            </div>
+
+            <p style={{ fontSize: "0.6875rem", color: "var(--fg-4)", marginTop: "0.75rem", textAlign: "center" }}>
+              Nach Zahlungseingang erhältst du sofort den Download-Link per Email.
+            </p>
           </div>
         </motion.section>
 

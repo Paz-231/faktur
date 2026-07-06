@@ -357,6 +357,83 @@
   margin: 0 auto;
 }
 
+/* ── Skill Section ─────────────────────────────────────────── */
+.skill-card {
+  max-width: 680px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 2.5rem;
+}
+
+.skill-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.skill-header h3 span { color: var(--accent); }
+
+.skill-price {
+  text-align: right;
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.skill-price span {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--fg-3);
+  letter-spacing: 0.05em;
+}
+
+.skill-features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+}
+
+.skill-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+  font-size: 0.8125rem;
+  color: var(--fg-2);
+}
+
+.skill-check {
+  color: var(--accent);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.skill-cta {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.skill-cta .input { flex: 1; }
+
+.skill-cta .btn { white-space: nowrap; }
+
+@media (max-width: 768px) {
+  .skill-card { padding: 1.5rem; }
+  .skill-header { flex-direction: column; }
+  .skill-price { text-align: left; }
+  .skill-features { grid-template-columns: 1fr; }
+  .skill-cta { flex-direction: column; }
+}
+
 .final-cta h2 {
   font-size: 2.25rem;
   font-weight: 700;
