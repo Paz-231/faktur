@@ -118,6 +118,9 @@ export default defineSchema({
     confirmedDate: v.optional(v.string()),
     // Verknüpfung
     auftragId: v.optional(v.id("auftrags")), // Auftrag der aus diesem Angebot entstand
+    // Sonstiges
+    paymentTerms: v.optional(v.string()),
+    footer: v.optional(v.string()),
     // Timestamps
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -264,7 +267,7 @@ export default defineSchema({
     amount: v.number(),
     pdfStorageId: v.optional(v.id("_storage")),
     createdAt: v.number(),
-  }).index("invoiceId", ["invoiceId"]),
+  }).index("invoiceId", ["invoiceId"]).index("userId", ["userId"]),
 
   // ─── Nummernkreis (pro User, pro Jahr) ─────────────────────
   numberSequences: defineTable({

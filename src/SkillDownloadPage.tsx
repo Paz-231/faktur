@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { convexSiteUrl } from "./lib";
 
 export function SkillDownloadPage({ token }: { token: string }) {
   const [info, setInfo] = useState<any>(null);
@@ -6,8 +7,7 @@ export function SkillDownloadPage({ token }: { token: string }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const convexUrl = import.meta.env.VITE_CONVEX_URL || "https://quick-ox-60.eu-west-1.convex.cloud";
-    fetch(`${convexUrl}/http/getDownloadInfo?token=${token}`)
+    fetch(`${convexSiteUrl()}/getDownloadInfo?token=${token}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.error) {
@@ -56,7 +56,7 @@ export function SkillDownloadPage({ token }: { token: string }) {
 
   const latest = info?.latest;
   const allVersions = info?.allVersions || [];
-  const convexUrl = import.meta.env.VITE_CONVEX_URL || "https://quick-ox-60.eu-west-1.convex.cloud";
+  const convexUrl = convexSiteUrl();
 
   return (
     <div className="modal-overlay" onClick={() => window.location.hash = ""}>
@@ -94,7 +94,7 @@ export function SkillDownloadPage({ token }: { token: string }) {
                 </div>
               )}
               <a
-                href={`${convexUrl}/http/downloadSkill?token=${token}`}
+                href={`${convexUrl}/downloadSkill?token=${token}`}
                 className="btn btn-primary"
                 style={{ display: "inline-flex", marginTop: "1rem", textDecoration: "none" }}
               >
@@ -129,7 +129,7 @@ export function SkillDownloadPage({ token }: { token: string }) {
                       <td>{(v.sizeBytes / 1024).toFixed(0)}KB</td>
                       <td>
                         <a
-                          href={`${convexUrl}/http/downloadSkill?token=${token}&version=${v.version}`}
+                          href={`${convexUrl}/downloadSkill?token=${token}&version=${v.version}`}
                           className="btn btn-sm"
                           style={{ textDecoration: "none" }}
                         >

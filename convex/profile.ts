@@ -73,6 +73,66 @@ export const create = mutation({
   },
 });
 
+// Update existing profile (Basisdaten + Bank + UID — Steuerstatus via changeTaxStatus)
+export const update = mutation({
+  args: {
+    profileId: v.id("businessProfiles"),
+    name: v.optional(v.string()),
+    street: v.optional(v.string()),
+    postalCityCountry: v.optional(v.string()),
+    country: v.optional(v.string()),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    legalForm: v.optional(v.string()),
+    bankOwner: v.optional(v.string()),
+    iban: v.optional(v.string()),
+    bic: v.optional(v.string()),
+    currentUid: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const profile = await ctx.db.get(args.profileId);
+    if (!profile) throw new Error("Profile not found");
+
+    const { profileId, ...updates } = args;
+    const clean: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(updates)) {
+      if (val !== undefined) clean[k] = val;
+    }
+
+    // UID changed → record in history
+    if (args.currentUid && args.currentUid !== profile.currentUid) {
+      const today = new Date().toISOString().split("T")[0];
+      const history = await ctx.db
+        .query("uidHistory")
+        .withIndex("profileId", (q) => q.eq("profileId", profileId))
+        .collect();
+      for (const entry of history) {
+        if (!entry.validUntil) {
+          await ctx.db.patch(entry._id, { validUntil: today });
+        }
+      }
+      await ctx.db.insert("uidHistory", {
+        profileId,
+        uid: args.currentUid,
+        validFrom: today,
+        validUntil: undefined,
+        changedAt: Date.now(),
+      });
+    }
+
+    await ctx.db.patch(profileId, { ...clean, updatedAt: Date.now() });
+
+    await ctx.db.insert("auditLog", {
+      userId: profile.userId,
+      action: "profile_updated",
+      details: `Profil aktualisiert`,
+      timestamp: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
 // Change tax status (with validity date — old status gets validUntil)
 export const changeTaxStatus = mutation({
   args: {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useAction } from "convex/react";
 import { api } from "../convex/_generated/api";
 
 interface UpgradeModalProps {
@@ -9,7 +9,7 @@ interface UpgradeModalProps {
 
 export function UpgradeModal({ auth, onClose }: UpgradeModalProps) {
   const [loading, setLoading] = useState<string | null>(null);
-  const createCheckout = useMutation(api.auth.createCheckoutSession);
+  const createCheckout = useAction(api.auth.createCheckoutSession);
 
   const handleUpgrade = async (plan: "starter" | "pro") => {
     setLoading(plan);

@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../convex/_generated/api";
+import { convexSiteUrl } from "./lib";
 
 interface SettingsPageProps {
   auth: { userId: string; email: string; name: string; plan: string };
@@ -19,9 +20,9 @@ export function SettingsPage({ auth }: SettingsPageProps) {
   const profile = useQuery(api.profile.get, { userId: auth.userId as any });
   const upsertSettings = useMutation(api.settings.upsert);
   const createProfile = useMutation(api.profile.create);
+  const updateBusinessProfile = useMutation(api.profile.update);
   const changeTaxStatus = useMutation(api.profile.changeTaxStatus);
-  const updateProfile = useMutation(api.auth.updateProfile);
-  const createBillingPortal = useMutation(api.auth.createBillingPortal);
+  const createBillingPortal = useAction(api.auth.createBillingPortal);
 
   const [rechnungMode, setRechnungMode] = useState<"auto" | "manual">("manual");
   const [defaultTaxMode, setDefaultTaxMode] = useState("kleinunternehmer");
@@ -106,10 +107,20 @@ export function SettingsPage({ auth }: SettingsPageProps) {
     setSavingProfile(true);
     try {
       if (profile) {
-        // Update existing profile
-        // Note: profile.update isn't built yet — using create with upsert pattern
-        // For now, we use the create function which will fail if profile exists
-        // TODO: Add profile.update mutation
+        await updateBusinessProfile({
+          profileId: profile._id,
+          name: profileForm.name || undefined,
+          street: profileForm.street || undefined,
+          postalCityCountry: profileForm.postalCityCountry || undefined,
+          country: profileForm.country || undefined,
+          email: profileForm.email || undefined,
+          phone: profileForm.phone || undefined,
+          legalForm: profileForm.legalForm || undefined,
+          bankOwner: profileForm.bankOwner || undefined,
+          iban: profileForm.iban || undefined,
+          bic: profileForm.bic || undefined,
+          currentUid: profileForm.currentUid || undefined,
+        });
       } else {
         // Create new profile
         await createProfile({
@@ -374,7 +385,7 @@ export function SettingsPage({ auth }: SettingsPageProps) {
         </p>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <a
-            href={`${import.meta.env.VITE_CONVEX_URL || "https://quick-ox-60.eu-west-1.convex.cloud"}/http/exportAllData?token=${localStorage.getItem("faktox_session")}`}
+            href={`${convexSiteUrl()}/exportAllData?token=${localStorage.getItem("faktox_session")}`}
             className="btn btn-primary btn-sm"
             style={{ textDecoration: "none" }}
           >

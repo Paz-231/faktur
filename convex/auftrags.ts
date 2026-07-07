@@ -1,10 +1,47 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════
 // Aufträge API — Pflicht-Dokument vor jeder Rechnung
 // ═══════════════════════════════════════════════════════════
+
+// Atomically pull the next number from the per-user/per-year sequence.
+// Runs inside the calling mutation's transaction — lückenlos garantiert.
+async function nextSequenceNumber(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  year: number,
+  prefix: string
+): Promise<string> {
+  const existing = await ctx.db
+    .query("numberSequences")
+    .withIndex("userId_year", (q) => q.eq("userId", userId).eq("year", year))
+    .first();
+
+  let num: number;
+  if (existing) {
+    num = existing.nextNumber;
+    await ctx.db.patch(existing._id, { nextNumber: num + 1 });
+  } else {
+    num = 1;
+    await ctx.db.insert("numberSequences", {
+      userId,
+      year,
+      nextNumber: 2,
+      createdAt: Date.now(),
+    });
+  }
+  return `${prefix}-${year}-${String(num).padStart(6, "0")}`;
+}
+
+// Free-plan limits: 3 Aufträge + 3 Rechnungen pro Monat
+const FREE_PLAN_MONTHLY_LIMIT = 3;
+
+function startOfCurrentMonth(): number {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+}
 
 // List all auftrags for a user
 export const list = query({
@@ -55,7 +92,7 @@ export const getNextNumber = mutation({
 export const create = mutation({
   args: {
     userId: v.id("users"),
-    number: v.string(),
+    number: v.optional(v.string()), // wenn nicht gesetzt: atomar aus Nummernkreis
     date: v.string(),
     deliveryDate: v.optional(v.string()),
     periodStart: v.optional(v.string()),
@@ -85,8 +122,30 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+
+    // Free-plan limit: max 3 Aufträge pro Monat
+    const user = await ctx.db.get(args.userId);
+    if (user && user.plan === "free") {
+      const monthStart = startOfCurrentMonth();
+      const monthAuftrags = await ctx.db
+        .query("auftrags")
+        .withIndex("userId", (q) => q.eq("userId", args.userId))
+        .filter((q) => q.gte(q.field("createdAt"), monthStart))
+        .collect();
+      if (monthAuftrags.length >= FREE_PLAN_MONTHLY_LIMIT) {
+        throw new Error(
+          "Free-Plan Limit erreicht: 3 Aufträge pro Monat. Upgrade auf Starter für unbegrenzte Aufträge."
+        );
+      }
+    }
+
+    // Server-side atomic number — lückenloser Nummernkreis
+    const number =
+      args.number ?? (await nextSequenceNumber(ctx, args.userId, new Date().getFullYear(), "AU"));
+
     const auftragId = await ctx.db.insert("auftrags", {
       ...args,
+      number,
       status: "draft",
       rechnungIds: [],
       createdAt: now,
@@ -105,7 +164,7 @@ export const create = mutation({
     await ctx.db.insert("auditLog", {
       userId: args.userId,
       action: "auftrag_created",
-      details: `Auftrag ${args.number} — €${args.grossAmount.toFixed(2)}`,
+      details: `Auftrag ${number} — €${args.grossAmount.toFixed(2)}`,
       timestamp: now,
     });
 
@@ -267,6 +326,22 @@ export const createRechnungFromAuftrag = mutation({
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) throw new Error("Auftrag not found");
     if (auftrag.status === "discarded") throw new Error("Auftrag was discarded");
+
+    // Free-plan limit: max 3 Rechnungen pro Monat
+    const user = await ctx.db.get(auftrag.userId);
+    if (user && user.plan === "free") {
+      const monthStart = startOfCurrentMonth();
+      const monthInvoices = await ctx.db
+        .query("outgoingInvoices")
+        .withIndex("userId", (q) => q.eq("userId", auftrag.userId))
+        .filter((q) => q.gte(q.field("createdAt"), monthStart))
+        .collect();
+      if (monthInvoices.length >= FREE_PLAN_MONTHLY_LIMIT) {
+        throw new Error(
+          "Free-Plan Limit erreicht: 3 Rechnungen pro Monat. Upgrade auf Starter für unbegrenzte Rechnungen."
+        );
+      }
+    }
 
     // Auto-confirm if still draft (Flow A: direct to rechnung)
     if (auftrag.status === "draft") {

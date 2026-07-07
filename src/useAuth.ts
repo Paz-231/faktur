@@ -34,6 +34,11 @@ export function useAuth() {
   const destroySession = useMutation(api.auth.destroySession);
 
   useEffect(() => {
+    if (!storedToken) {
+      // No stored session — nothing to validate
+      setLoading(false);
+      return;
+    }
     if (sessionData === undefined) return; // still loading
 
     if (sessionData && sessionData !== null) {

@@ -93,14 +93,12 @@ export function CreateInvoiceModal({ userId, onClose, onCreated }: CreateInvoice
         total: item.qty * item.unitPrice,
       }));
 
-      // Step 1: Create Auftrag (draft status — no rechnung yet)
-      const year = new Date().getFullYear();
-      const auftragNumber = `AU-${year}-${String(Date.now() % 1000000).padStart(6, "0")}`;
+      // Step 1: Create Auftrag (draft status — no rechnung yet).
+      // Nummer wird serverseitig atomar aus dem Nummernkreis vergeben.
       setCreatedStep("Auftrag wird erstellt...");
 
       await createAuftrag({
         userId: userId as any,
-        number: auftragNumber,
         date,
         deliveryDate: deliveryDate || undefined,
         recipientName,
@@ -144,7 +142,7 @@ export function CreateInvoiceModal({ userId, onClose, onCreated }: CreateInvoice
         <div className="modal-body">
           {/* Flow Info */}
           <div style={{ padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--border)", marginBottom: "1rem", fontSize: "0.75rem", color: "var(--fg-3)" }}>
-            Flow: Auftrag wird erstellt. Rechnung kann später aus dem Auftrag generiert werden.
+            Der Auftrag ist die Basis — die Rechnung erstellst du danach mit einem Klick aus der Auftrags-Detailansicht (lückenloser Nummernkreis inklusive).
           </div>
 
           {/* Type */}
@@ -270,7 +268,7 @@ export function CreateInvoiceModal({ userId, onClose, onCreated }: CreateInvoice
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Abbrechen</button>
           <button className="btn btn-primary" onClick={handleCreate} disabled={creating}>
-            {creating ? (createdStep || "Erstelle...") : "Auftrag + Rechnung erstellen"}
+            {creating ? (createdStep || "Erstelle...") : "Auftrag erstellen"}
           </button>
         </div>
       </div>

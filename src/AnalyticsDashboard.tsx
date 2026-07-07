@@ -219,26 +219,25 @@ export function AnalyticsDashboard({ auth, onUpgrade }: DashboardPageProps) {
       <div className="card" style={{ marginBottom: "1.5rem" }}>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-end", height: 160, padding: "0.5rem 0" }}>
           {months.map((m, i) => (
-            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.25rem" }}>
-              {/* Revenue bar */}
-              <div style={{ width: "60%", position: "relative", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
+            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", height: "100%" }}>
+              <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", gap: "3px" }}>
                 <div style={{
+                  width: "30%",
                   background: "var(--accent)",
                   height: `${(m.revenue / maxBar) * 100}%`,
-                  minHeight: m.revenue > 0 ? "4px" : "0",
+                  minHeight: m.revenue > 0 ? "4px" : "1px",
+                  transition: "height 0.3s ease",
+                }} />
+                <div style={{
+                  width: "30%",
+                  background: "var(--fg-4)",
+                  height: `${(m.expenses / maxBar) * 100}%`,
+                  minHeight: m.expenses > 0 ? "4px" : "1px",
+                  opacity: 0.6,
                   transition: "height 0.3s ease",
                 }} />
               </div>
-              {/* Expenses bar */}
-              <div style={{ width: "60%", position: "relative", display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%", marginTop: "-100%" }}>
-                <div style={{
-                  background: "var(--fg-4)",
-                  height: `${(m.expenses / maxBar) * 100}%`,
-                  minHeight: m.expenses > 0 ? "4px" : "0",
-                  opacity: 0.6,
-                }} />
-              </div>
-              <div style={{ fontSize: "0.625rem", color: "var(--fg-3)", marginTop: "0.25rem" }}>{m.label}</div>
+              <div style={{ fontSize: "0.625rem", color: "var(--fg-3)", marginTop: "0.375rem" }}>{m.label}</div>
               <div style={{ fontSize: "0.625rem", color: "var(--accent)", fontWeight: 500 }}>{money(m.revenue)}</div>
             </div>
           ))}
@@ -256,7 +255,7 @@ export function AnalyticsDashboard({ auth, onUpgrade }: DashboardPageProps) {
       </div>
 
       {/* Two columns: Top Customers + Auftrags Status */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
+      <div className="two-col">
         {/* Top Customers */}
         <div className="card">
           <h4 style={{ marginBottom: "1rem" }}>Top Kunden (nach Umsatz)</h4>

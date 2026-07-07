@@ -1,5 +1,6 @@
 import { httpAction } from "./_generated/server";
 import { api } from "./_generated/api";
+import { verifyStripeSignature } from "./stripe";
 
 // ═══════════════════════════════════════════════════════════
 // Skill Download API — 99€ einmalig, dann Download
@@ -65,20 +66,18 @@ export const skillWebhook = httpAction(async (ctx, request) => {
   }
 
   const body = await request.text();
-  const stripeKey = process.env.STRIPE_SECRET_KEY;
   const webhookSecret = process.env.STRIPE_SKILL_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET;
 
-  if (!stripeKey || !webhookSecret) {
+  if (!webhookSecret) {
     return new Response("Stripe not configured", { status: 500 });
   }
 
-  // Verify webhook signature
-  const resp = await fetch(`https://api.stripe.com/v1/webhook_endpoints`, {
-    headers: { "Authorization": `Bearer ${stripeKey}` },
-  });
+  // Verify webhook signature (HMAC-SHA256, v1 scheme)
+  const valid = await verifyStripeSignature(body, sig, webhookSecret);
+  if (!valid) {
+    return new Response("Invalid signature", { status: 400 });
+  }
 
-  // Simple verification — in production use Stripe SDK
-  // For now, we trust the metadata
   const event = JSON.parse(body);
 
   if (event.type === "checkout.session.completed") {
@@ -88,7 +87,7 @@ export const skillWebhook = httpAction(async (ctx, request) => {
     if (session.metadata?.product === "faktox-invoice-agent-skill") {
       // Generate download token
       const token = crypto.randomUUID();
-      await ctx.runMutation(api.skillDownload.createToken, {
+      await ctx.runMutation(api.skillDownloadDB.createToken, {
         email,
         token,
         sessionId: session.id,
@@ -142,7 +141,7 @@ export const verifyDownload = httpAction(async (ctx, request) => {
     });
   }
 
-  const result = await ctx.runQuery(api.skillDownload.getByToken, { token });
+  const result = await ctx.runQuery(api.skillDownloadDB.getByToken, { token });
 
   if (!result) {
     return new Response(JSON.stringify({ error: "Invalid or expired token" }), {

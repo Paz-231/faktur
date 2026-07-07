@@ -1,6 +1,6 @@
-import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
+import { query, mutation, action, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════
 // Auth API — Magic-Link Authentication
@@ -58,14 +58,21 @@ export const requestMagicLink = mutation({
     const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     const magicLink = `${baseUrl}/auth/verify?token=${token}`;
 
+    // Dev mode: no email provider configured — return the token directly
+    // so the UI can offer a manual login path.
+    if (!process.env.RESEND_API_KEY) {
+      console.log(`[DEV] Magic link for ${email}: ${magicLink}`);
+      return { success: true, message: "Dev-Modus", dev: true, token, link: magicLink };
+    }
+
     // Schedule email sending (internal action)
-    await ctx.scheduler.runAfter(0, api.auth.sendMagicLinkEmail, {
+    await ctx.scheduler.runAfter(0, internal.auth.sendMagicLinkEmail, {
       email,
       magicLink,
       userName: user!.name,
     });
 
-    return { success: true, message: "Magic-Link gesendet" };
+    return { success: true, message: "Magic-Link gesendet", dev: false };
   },
 });
 
@@ -199,8 +206,8 @@ export const getCurrentUser = query({
   },
 });
 
-// Internal: Send magic link email via Resend
-export const sendMagicLinkEmail = internalMutation({
+// Internal: Send magic link email via Resend (action — needs network access)
+export const sendMagicLinkEmail = internalAction({
   args: {
     email: v.string(),
     magicLink: v.string(),
@@ -282,6 +289,14 @@ export const getUserByEmail = query({
   },
 });
 
+// Internal: full user record (for Stripe actions)
+export const getUserById = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.userId);
+  },
+});
+
 // Find user by Stripe customer ID (for webhook updates)
 export const getUserByStripeCustomer = query({
   args: { customerId: v.string() },
@@ -319,14 +334,14 @@ export const updateSubscription = mutation({
   },
 });
 
-// Create Stripe Checkout Session (returns URL for redirect)
-export const createCheckoutSession = mutation({
+// Create Stripe Checkout Session (action — network call, returns URL for redirect)
+export const createCheckoutSession = action({
   args: {
     userId: v.id("users"),
     email: v.string(),
     plan: v.string(), // "starter" | "pro"
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ checkoutUrl?: string | null; error?: string }> => {
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeKey) {
       return { error: "Stripe not configured" };
@@ -341,42 +356,45 @@ export const createCheckoutSession = mutation({
       return { error: "Price not configured" };
     }
 
-    // Build checkout URL — client-side redirect to Stripe Checkout
     const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
-    const Stripe = (await import("stripe")).default;
-    const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" as any });
-
-    const session = await stripe.checkout.sessions.create({
-      customer_email: args.email,
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      mode: "subscription",
-      success_url: `${baseUrl}?payment=success`,
-      cancel_url: `${baseUrl}?payment=canceled`,
-      metadata: {
-        userId: args.userId,
-        email: args.email,
-        plan: args.plan,
+    const resp = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${stripeKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
       },
+      body: new URLSearchParams({
+        mode: "subscription",
+        customer_email: args.email,
+        "payment_method_types[0]": "card",
+        "line_items[0][price]": priceId,
+        "line_items[0][quantity]": "1",
+        success_url: `${baseUrl}?payment=success`,
+        cancel_url: `${baseUrl}?payment=canceled`,
+        "metadata[userId]": args.userId,
+        "metadata[email]": args.email,
+        "metadata[plan]": args.plan,
+      }),
     });
+
+    const session = await resp.json();
+    if (!resp.ok || !session.url) {
+      console.error("Stripe checkout error:", JSON.stringify(session.error || session));
+      return { error: "Checkout creation failed" };
+    }
 
     return { checkoutUrl: session.url };
   },
 });
 
 // Manage subscription (billing portal)
-export const createBillingPortal = mutation({
+export const createBillingPortal = action({
   args: {
     userId: v.id("users"),
   },
-  handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
+  handler: async (ctx, args): Promise<{ portalUrl?: string | null; error?: string }> => {
+    const user = await ctx.runQuery(internal.auth.getUserById, { userId: args.userId });
     if (!user || !user.stripeCustomerId) {
       return { error: "No Stripe customer found" };
     }
@@ -387,13 +405,24 @@ export const createBillingPortal = mutation({
     }
 
     const baseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-    const Stripe = (await import("stripe")).default;
-    const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" as any });
 
-    const session = await stripe.billingPortal.sessions.create({
-      customer: user.stripeCustomerId,
-      return_url: `${baseUrl}`,
+    const resp = await fetch("https://api.stripe.com/v1/billing_portal/sessions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${stripeKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        customer: user.stripeCustomerId,
+        return_url: baseUrl,
+      }),
     });
+
+    const session = await resp.json();
+    if (!resp.ok || !session.url) {
+      console.error("Stripe portal error:", JSON.stringify(session.error || session));
+      return { error: "Portal creation failed" };
+    }
 
     return { portalUrl: session.url };
   },

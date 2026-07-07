@@ -13,9 +13,7 @@
     "convex": "^1.42.1",
     "framer-motion": "^12.42.2",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "stripe": "^22.3.0",
-    "wouter": "^3.10.0"
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

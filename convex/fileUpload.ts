@@ -99,8 +99,14 @@ export const scanInvoiceFile = action({
     // Determine mime type
     const contentType = response.headers.get("content-type") || "application/octet-stream";
 
-    // Convert to base64 for Vision API
-    const base64 = btoa(String.fromCharCode(...bytes));
+    // Convert to base64 for Vision API (chunked — spreading 10MB into
+    // String.fromCharCode would blow the call stack)
+    let binary = "";
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
+    }
+    const base64 = btoa(binary);
 
     // Call Vision API via OpenRouter
     const apiKey = process.env.BUILT_IN_FORGE_API_KEY || process.env.OPENROUTER_API_KEY;
@@ -151,15 +157,48 @@ export const scanInvoiceFile = action({
       return;
     }
 
-    const result = await visionResponse.json();
-    const content = result.choices[0].message.content;
-    const extracted = JSON.parse(content);
+    let extracted: any;
+    try {
+      const result = await visionResponse.json();
+      const content: string = result.choices?.[0]?.message?.content || "";
+      // Strip possible markdown fences before parsing
+      const jsonText = content.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      extracted = JSON.parse(jsonText);
+    } catch (err) {
+      console.error("Failed to parse vision result:", err);
+      await ctx.runMutation(api.fileUpload.markScanFailed, {
+        incomingId: args.incomingId,
+        userId: args.userId,
+      });
+      return;
+    }
 
-    // Update the incoming invoice with extracted data
+    // Sanitize: only pass fields the mutation validator knows, coerce types
+    const str = (x: any) => (x === undefined || x === null ? undefined : String(x));
+    const num = (x: any) => {
+      const n = typeof x === "number" ? x : parseFloat(String(x).replace(",", "."));
+      return Number.isFinite(n) ? n : 0;
+    };
+
     await ctx.runMutation(api.fileUpload.applyScanResult, {
       incomingId: args.incomingId,
       userId: args.userId,
-      data: extracted,
+      data: {
+        invoice_number: str(extracted.invoice_number) || "",
+        date: str(extracted.date) || "",
+        issuer_name: str(extracted.issuer_name) || "",
+        issuer_street: str(extracted.issuer_street),
+        issuer_city: str(extracted.issuer_city),
+        issuer_uid: str(extracted.issuer_uid),
+        net_amount: num(extracted.net_amount),
+        vat_amount: num(extracted.vat_amount),
+        gross_amount: num(extracted.gross_amount),
+        tax_rate: num(extracted.tax_rate),
+        category_guess: str(extracted.category_guess),
+        payment_terms: str(extracted.payment_terms),
+        iban: str(extracted.iban),
+        bic: str(extracted.bic),
+      },
     });
   },
 });

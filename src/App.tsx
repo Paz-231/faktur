@@ -1,22 +1,33 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { SkillDownloadPage } from "./SkillDownloadPage";
 import { Dashboard } from "./Dashboard";
 import { useAuth } from "./useAuth";
 import { api } from "../convex/_generated/api";
+import { convexSiteUrl } from "./lib";
 
 export default function App() {
-  const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
   const [skillEmail, setSkillEmail] = useState("");
   const [skillBuying, setSkillBuying] = useState(false);
   const [downloadToken, setDownloadToken] = useState<string | null>(null);
+  const [magicToken, setMagicToken] = useState<string | null>(null);
   const { auth, logout, loading: authLoading } = useAuth();
 
-  // Check URL hash for download token (from email link)
+  // Check URL for magic-link token (from email) and skill download token
   useEffect(() => {
+    // Magic link: /auth/verify?token=... (email link)
+    const url = new URL(window.location.href);
+    if (url.pathname.startsWith("/auth/verify")) {
+      const token = url.searchParams.get("token");
+      if (token) {
+        setMagicToken(token);
+        return;
+      }
+    }
+
     const checkHash = () => {
       const hash = window.location.hash;
       if (hash.includes("skill-download") || hash.includes("skill-success")) {
@@ -30,7 +41,6 @@ export default function App() {
     return () => window.removeEventListener("hashchange", checkHash);
   }, []);
 
-  const containerRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll();
   const smoothProgress = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
@@ -47,7 +57,7 @@ export default function App() {
     if (!skillEmail) return;
     setSkillBuying(true);
     try {
-      const resp = await fetch(`${import.meta.env.VITE_CONVEX_URL}/http/createSkillCheckout`, {
+      const resp = await fetch(`${convexSiteUrl()}/createSkillCheckout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: skillEmail }),
@@ -65,6 +75,19 @@ export default function App() {
     }
   };
 
+  const scrollTo = (id: string) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+
+  const openLogin = (email?: string) => {
+    if (email) setLoginEmail(email);
+    setShowLogin(true);
+  };
+
+  // Magic-link verification (from email link) has priority
+  if (magicToken) {
+    return <MagicLinkVerify token={magicToken} />;
+  }
+
   return (
     <div className="landing">
       {/* If authenticated (server-validated), show Dashboard */}
@@ -80,8 +103,13 @@ export default function App() {
         />
       )}
 
+      {/* While validating a stored session, don't flash the landing page */}
+      {!auth.userId && authLoading && !downloadToken && (
+        <div className="landing-loading">Faktox<span>.</span></div>
+      )}
+
       {/* Otherwise show landing page */}
-      {!auth.userId && (
+      {!auth.userId && !authLoading && (
         <>
       {/* Liquid animated background */}
       <motion.div
@@ -104,49 +132,65 @@ export default function App() {
         <nav className="landing-nav">
           <div className="landing-nav-logo">Faktox<span>.</span></div>
           <div className="landing-nav-links">
-            <a onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}>Features</a>
-            <a onClick={() => document.getElementById("moat")?.scrollIntoView({ behavior: "smooth" })}>Warum Faktox</a>
-            <a onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}>Preise</a>
-            <button className="landing-nav-login" onClick={() => setShowLogin(true)}>Einloggen</button>
+            <a onClick={() => scrollTo("features")}>Features</a>
+            <a onClick={() => scrollTo("how")}>So funktioniert's</a>
+            <a onClick={() => scrollTo("pricing")}>Preise</a>
+            <a onClick={() => scrollTo("faq")}>FAQ</a>
+            <button className="landing-nav-login" onClick={() => openLogin()}>Einloggen</button>
+            <button className="btn btn-primary btn-sm landing-nav-cta" onClick={() => scrollTo("start")}>
+              Kostenlos starten
+            </button>
           </div>
         </nav>
 
         {/* Hero */}
-        <motion.section className="hero" style={{ y: heroY, opacity: heroOpacity }}>
+        <motion.section className="hero" id="start" style={{ y: heroY, opacity: heroOpacity }}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.2, 0, 0, 1] }}
           >
-            <span className="hero-badge">DACH Rechnungs-SaaS</span>
-            <h1>Rechnungen.<br /><span>Intelligent.</span></h1>
+            <span className="hero-badge">Rechnungen + Buchhaltung für Selbständige in AT & DE</span>
+            <h1>Rechnung fertig<br />in <span>30 Sekunden.</span></h1>
             <p>
-              Fotografieren, diktieren, fertig. Faktox erstellt AT-Honorarnoten
-              und DE-Rechnungen mit KI — automatisch DACH-konform, mit
-              Mahnwesen und Buchhaltungs-Report.
+              Foto machen oder diktieren — Faktox erstellt DACH-konforme Rechnungen
+              und Honorarnoten, mahnt säumige Kunden automatisch und liefert dir den
+              Steuerberater-fertigen Report. Ohne Excel. Ohne Papierkram.
             </p>
-            {!submitted ? (
-              <form className="hero-cta" onSubmit={(e) => { e.preventDefault(); if (email) setSubmitted(true); }}>
-                <input
-                  className="hero-input"
-                  type="email"
-                  placeholder="deine@email.at"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <button type="submit" className="btn btn-primary">
-                  Kostenlos starten
-                </button>
-              </form>
-            ) : (
-              <div className="waitlist-success">
-                <div className="waitlist-success-text">Auf der Warteliste. Wir melden uns.</div>
-                <button className="btn btn-sm" onClick={() => setShowLogin(true)}>Jetzt einloggen »</button>
-              </div>
-            )}
+            <SignupCta ctaLabel="Kostenlos starten" onDevLogin={(email) => openLogin(email)} />
+            <div className="hero-trust">
+              <span>Keine Kreditkarte nötig</span>
+              <span>3 Rechnungen/Monat gratis</span>
+              <span>Jederzeit kündbar</span>
+            </div>
             <div className="scroll-hint">scroll</div>
           </motion.div>
+        </motion.section>
+
+        {/* Value stats strip */}
+        <motion.section
+          className="stats-strip"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="stats-strip-item">
+            <div className="stats-strip-value">30 Sek.</div>
+            <div className="stats-strip-label">bis zur fertigen Rechnung</div>
+          </div>
+          <div className="stats-strip-item">
+            <div className="stats-strip-value">100%</div>
+            <div className="stats-strip-label">AT & DE konform (UStG)</div>
+          </div>
+          <div className="stats-strip-item">
+            <div className="stats-strip-value">3 Stufen</div>
+            <div className="stats-strip-label">automatisches Mahnwesen</div>
+          </div>
+          <div className="stats-strip-item">
+            <div className="stats-strip-value">0</div>
+            <div className="stats-strip-label">Excel-Tabellen nötig</div>
+          </div>
         </motion.section>
 
         {/* Features */}
@@ -159,7 +203,7 @@ export default function App() {
           transition={{ duration: 0.5 }}
         >
           <h2 className="section-title">Alles drin. Nichts zu viel.</h2>
-          <p className="section-subtitle">Was Faktox von Excel und anderen Tools unterscheidet.</p>
+          <p className="section-subtitle">Dein komplettes Rechnungs- und Buchhaltungs-Cockpit.</p>
 
           {/* Dashboard Mockup */}
           <motion.div
@@ -222,7 +266,7 @@ export default function App() {
             </div>
           </motion.div>
 
-          {/* Feature cards with individual mockups */}
+          {/* Feature cards */}
           <div className="features-grid" style={{ marginTop: "2.5rem" }}>
             {[
               { label: "AI", title: "Foto & Voice-Eingabe", desc: "Fotografiere den Stundenzettel oder diktiere die Rechnung. KI extrahiert alle Daten automatisch." },
@@ -248,6 +292,39 @@ export default function App() {
           </div>
         </motion.section>
 
+        {/* How it works */}
+        <motion.section
+          className="section"
+          id="how"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.5 }}
+        >
+          <h2 className="section-title">So funktioniert's</h2>
+          <p className="section-subtitle">Drei Schritte. Kein Handbuch nötig.</p>
+          <div className="how-grid">
+            {[
+              { step: "01", title: "Erfassen", desc: "Foto vom Stundenzettel, Diktat oder ein paar Klicks — die KI füllt Empfänger, Positionen und Steuersatz automatisch aus." },
+              { step: "02", title: "Prüfen & Senden", desc: "Ein Blick auf die Vorschau, bestätigen, fertig. Nummernkreis, Steuertext und Zahlungsziel setzt Faktox korrekt." },
+              { step: "03", title: "Zurücklehnen", desc: "Faktox überwacht Zahlungseingänge, mahnt automatisch in 3 Stufen und legt alles für deinen Steuerberater ab." },
+            ].map((s, i) => (
+              <motion.div
+                key={i}
+                className="how-item"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.12 }}
+              >
+                <div className="how-step">{s.step}</div>
+                <h3>{s.title}</h3>
+                <p>{s.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </motion.section>
+
         {/* Moat */}
         <motion.section
           className="moat-section"
@@ -262,7 +339,6 @@ export default function App() {
 
           {/* Analytics + Upload Mockups */}
           <div className="mockup-row">
-            {/* Analytics Mockup */}
             <motion.div
               className="mockup"
               initial={{ opacity: 0, x: -20 }}
@@ -298,7 +374,6 @@ export default function App() {
               </div>
             </motion.div>
 
-            {/* Upload Mockup */}
             <motion.div
               className="mockup"
               initial={{ opacity: 0, x: 20 }}
@@ -330,7 +405,6 @@ export default function App() {
             </motion.div>
           </div>
 
-          {/* Moat items */}
           <div className="moat-grid" style={{ marginTop: "2.5rem" }}>
             {[
               { title: "UID-Pflicht-Prüfung", desc: "USt-pflichtig ohne UID? Rechnung wird blockiert. Kein Steuerausweis ohne UID-Nummer." },
@@ -398,13 +472,16 @@ export default function App() {
                 </ul>
                 <button
                   className={`btn ${plan.featured ? "btn-primary" : ""}`}
-                  onClick={() => setShowLogin(true)}
+                  onClick={() => openLogin()}
                 >
                   {plan.name === "Free" ? "Kostenlos starten" : `${plan.name} wählen`}
                 </button>
               </motion.div>
             ))}
           </div>
+          <p className="pricing-note">
+            Alle Pläne starten kostenlos — Upgrade erst, wenn du mehr brauchst. Preise inkl. USt.
+          </p>
         </motion.section>
 
         {/* Skill Section */}
@@ -434,54 +511,25 @@ export default function App() {
             </div>
 
             <div className="skill-features">
-              <div className="skill-feature">
-                <span className="skill-check">—</span>
-                <span>13 Production-Scripts (Python)</span>
-              </div>
-              <div className="skill-feature">
-                <span className="skill-check">—</span>
-                <span>AT-Honorarnoten + DE-Rechnungen</span>
-              </div>
-              <div className="skill-feature">
-                <span className="skill-check">—</span>
-                <span>AI Foto-Scan (Vision API)</span>
-              </div>
-              <div className="skill-feature">
-                <span className="skill-check">—</span>
-                <span>Lückenloser Nummernkreis + Storno</span>
-              </div>
-              <div className="skill-feature">
-                <span className="skill-check">—</span>
-                <span>Steuerstatus-Wechsel (Kleinunternehmer → USt-pflichtig)</span>
-              </div>
-              <div className="skill-feature">
-                <span className="skill-check">—</span>
-                <span>Mahnwesen (3 Stufen)</span>
-              </div>
-              <div className="skill-feature">
-                <span className="skill-check">—</span>
-                <span>Buchhaltungs-Report (EÜR, UStVA, DATEV)</span>
-              </div>
-              <div className="skill-feature">
-                <span className="skill-check">—</span>
-                <span>Eingangsrechnungen + Email-Abholung</span>
-              </div>
-              <div className="skill-feature">
-                <span className="skill-check">—</span>
-                <span>Komplette SKILL.md mit Anleitung</span>
-              </div>
-              <div className="skill-feature">
-                <span className="skill-check">—</span>
-                <span>JSON Templates (AT + DE)</span>
-              </div>
-              <div className="skill-feature">
-                <span className="skill-check">—</span>
-                <span>Einzelplatz-Lizenz, sofort downloadbar</span>
-              </div>
-              <div className="skill-feature">
-                <span className="skill-check">—</span>
-                <span>Fortlaufende Updates inklusive — immer die aktuellste Version</span>
-              </div>
+              {[
+                "13 Production-Scripts (Python)",
+                "AT-Honorarnoten + DE-Rechnungen",
+                "AI Foto-Scan (Vision API)",
+                "Lückenloser Nummernkreis + Storno",
+                "Steuerstatus-Wechsel (Kleinunternehmer → USt-pflichtig)",
+                "Mahnwesen (3 Stufen)",
+                "Buchhaltungs-Report (EÜR, UStVA, DATEV)",
+                "Eingangsrechnungen + Email-Abholung",
+                "Komplette SKILL.md mit Anleitung",
+                "JSON Templates (AT + DE)",
+                "Einzelplatz-Lizenz, sofort downloadbar",
+                "Fortlaufende Updates inklusive — immer die aktuellste Version",
+              ].map((f, i) => (
+                <div className="skill-feature" key={i}>
+                  <span className="skill-check">—</span>
+                  <span>{f}</span>
+                </div>
+              ))}
             </div>
 
             <div className="skill-cta">
@@ -503,6 +551,34 @@ export default function App() {
           </div>
         </motion.section>
 
+        {/* FAQ */}
+        <motion.section
+          className="section faq-section"
+          id="faq"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.5 }}
+        >
+          <h2 className="section-title">Häufige Fragen</h2>
+          <p className="section-subtitle">Alles, was du vor dem Start wissen willst.</p>
+          <div className="faq-list">
+            {[
+              { q: "Ist Faktox wirklich kostenlos?", a: "Ja. Der Free-Plan mit 3 Rechnungen und 3 Aufträgen pro Monat ist dauerhaft kostenlos — ohne Kreditkarte. Erst wenn du mehr brauchst, lohnt sich Starter (14,90€/Monat)." },
+              { q: "Sind die Rechnungen rechtskonform für Österreich und Deutschland?", a: "Ja. Faktox erstellt AT-Honorarnoten mit §6 Abs1 Z27 UStG-Hinweis und DE-Rechnungen mit §19 UStG. Kleinunternehmer-Regelung, Reverse Charge und Steuerstatus-Wechsel werden automatisch korrekt abgebildet. Faktox ersetzt keine Steuerberatung." },
+              { q: "Wie funktioniert der Foto-Scan?", a: "Du lädst ein Foto oder PDF einer Rechnung hoch — die KI extrahiert Lieferant, Beträge, Steuersatz und Kategorie automatisch und legt die Eingangsrechnung sauber ab. Verfügbar ab dem Starter-Plan." },
+              { q: "Was passiert mit meinen Daten?", a: "Deine Daten liegen verschlüsselt auf EU-Servern (Convex, Region eu-west-1). Tägliche automatische Backups, 90 Tage Aufbewahrung, jederzeit vollständiger JSON-Export mit einem Klick. DSGVO-konform." },
+              { q: "Kann ich jederzeit kündigen?", a: "Ja. Monatlich kündbar, direkt im Stripe-Portal unter Einstellungen. Deine Daten bleiben erhalten und exportierbar — auch im Free-Plan." },
+              { q: "Brauche ich Buchhaltungswissen?", a: "Nein. Faktox nimmt dir Nummernkreis, Steuertexte, Mahnfristen und Reports ab. Für den Jahresabschluss exportierst du einfach den Steuerberater-fertigen Report (EÜR, UStVA, DATEV)." },
+            ].map((item, i) => (
+              <details className="faq-item" key={i}>
+                <summary>{item.q}</summary>
+                <p>{item.a}</p>
+              </details>
+            ))}
+          </div>
+        </motion.section>
+
         {/* Final CTA */}
         <motion.section
           className="final-cta"
@@ -513,18 +589,18 @@ export default function App() {
         >
           <h2>Starte heute.</h2>
           <p>Keine Kreditkarte nötig. 3 Rechnungen gratis. Upgrade jederzeit.</p>
-          <button className="btn btn-primary" onClick={() => setShowLogin(true)}>Kostenlos starten</button>
+          <SignupCta ctaLabel="Kostenlos starten" onDevLogin={(email) => openLogin(email)} />
         </motion.section>
 
         {/* Footer */}
         <footer className="landing-footer">
-          <p>Faktox — DACH Rechnungs-SaaS mit KI<br />faktox.online — © 2026 maighty Labs. Keine Steuerberatung.</p>
+          <p>Faktox — Rechnungen + Buchhaltung mit KI für Selbständige in AT & DE<br />faktox.online — © 2026 maighty Labs. Keine Steuerberatung.</p>
         </footer>
       </div>
 
-      {/* Login redirect */}
+      {/* Login modal */}
       {showLogin && !auth.userId && (
-        <LoginRedirect />
+        <LoginModal initialEmail={loginEmail} onClose={() => setShowLogin(false)} />
       )}
         </>
       )}
@@ -537,50 +613,174 @@ export default function App() {
   );
 }
 
-function LoginRedirect() {
+// ═══════════════════════════════════════════════════════════
+// Signup CTA — Email rein, Magic-Link raus. Landet zusätzlich
+// in der Waitlist (Marketing), Login-Flow startet sofort.
+// ═══════════════════════════════════════════════════════════
+function SignupCta({ ctaLabel, onDevLogin }: { ctaLabel: string; onDevLogin: (email: string) => void }) {
   const [email, setEmail] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [error, setError] = useState("");
+  const requestMagicLink = useMutation(api.auth.requestMagicLink);
+  const joinWaitlist = useMutation(api.waitlist.join);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || state === "sending") return;
+    setState("sending");
+    setError("");
+    try {
+      // Capture email for marketing regardless of login outcome
+      joinWaitlist({ email }).catch(() => {});
+      const result = await requestMagicLink({ email });
+      if (result.dev) {
+        // No email provider configured — hand over to the login modal
+        // where the dev token can be entered manually.
+        onDevLogin(email);
+        setState("idle");
+        return;
+      }
+      setState("sent");
+    } catch (err: any) {
+      setError(err.message || "Fehler beim Senden");
+      setState("error");
+    }
+  };
+
+  if (state === "sent") {
+    return (
+      <div className="waitlist-success">
+        <div className="waitlist-success-text">Login-Link gesendet an {email}</div>
+        <p style={{ fontSize: "0.8125rem", color: "var(--fg-3)" }}>
+          Check dein Postfach — der Link ist 15 Minuten gültig.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form className="hero-cta" onSubmit={handleSubmit}>
+      <input
+        className="hero-input"
+        type="email"
+        placeholder="deine@email.at"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+      />
+      <button type="submit" className="btn btn-primary btn-lg" disabled={state === "sending"}>
+        {state === "sending" ? "Sende Login-Link..." : ctaLabel}
+      </button>
+      {state === "error" && (
+        <div className="hero-cta-error">{error}</div>
+      )}
+    </form>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Magic-Link Verify — Ziel des Email-Links (/auth/verify?token=)
+// ═══════════════════════════════════════════════════════════
+function MagicLinkVerify({ token }: { token: string }) {
+  const [error, setError] = useState("");
+  const completeLogin = useMutation(api.auth.completeLogin);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await completeLogin({ token });
+        if (cancelled) return;
+        localStorage.setItem("faktox_session", result.sessionToken);
+        // Clean URL, then reload into the dashboard
+        window.history.replaceState({}, "", "/");
+        window.location.reload();
+      } catch (err: any) {
+        if (!cancelled) setError(err.message || "Token ungültig oder abgelaufen");
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  return (
+    <div className="auth-page">
+      <div className="auth-box" style={{ textAlign: "center" }}>
+        <h1>Faktox<span>.</span></h1>
+        {error ? (
+          <>
+            <p style={{ color: "var(--danger)", marginTop: "1rem" }}>{error}</p>
+            <button
+              className="btn btn-primary"
+              style={{ marginTop: "1rem" }}
+              onClick={() => { window.history.replaceState({}, "", "/"); window.location.reload(); }}
+            >
+              Zurück zur Startseite
+            </button>
+          </>
+        ) : (
+          <p style={{ marginTop: "1rem" }}>Einloggen...</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Login Modal — Magic-Link anfordern (+ Dev-Token-Eingabe)
+// ═══════════════════════════════════════════════════════════
+function LoginModal({ initialEmail, onClose }: { initialEmail?: string; onClose: () => void }) {
+  const [email, setEmail] = useState(initialEmail || "");
   const [sent, setSent] = useState(false);
+  const [devMode, setDevMode] = useState(false);
   const [verifyToken, setVerifyToken] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const requestMagicLink = useMutation(api.auth.requestMagicLink);
   const verifyMagicLink = useMutation(api.auth.completeLogin);
 
   const handleRequest = async () => {
-    if (!email) return;
+    if (!email || busy) return;
     setError("");
+    setBusy(true);
     try {
       const result = await requestMagicLink({ email });
-      if (result.dev) {
-        // Dev mode — show link directly
+      if (result.dev && result.token) {
+        // Dev mode — token comes back directly
+        setDevMode(true);
         setVerifyToken(result.token);
       }
       setSent(true);
     } catch (err: any) {
       setError(err.message || "Fehler beim Senden");
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleVerify = async () => {
-    if (!verifyToken) return;
+    if (!verifyToken || busy) return;
     setError("");
+    setBusy(true);
     try {
       const result = await verifyMagicLink({ token: verifyToken });
       if (result.sessionToken) {
         localStorage.setItem("faktox_session", result.sessionToken);
-        localStorage.setItem("faktox_auth", JSON.stringify(result));
         window.location.reload(); // Reload to trigger useAuth
       }
     } catch (err: any) {
       setError(err.message || "Token ungültig");
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
-    <div className="modal-overlay" onClick={() => window.location.reload()}>
+    <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400 }}>
         <div className="modal-header">
           <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Faktox<span style={{ color: "var(--accent)" }}>.</span></h2>
-          <button className="btn btn-ghost btn-icon" onClick={() => window.location.reload()}>×</button>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
           {error && (
@@ -588,11 +788,21 @@ function LoginRedirect() {
               {error}
             </div>
           )}
-          {sent && !verifyToken ? (
-            <p style={{ textAlign: "center", color: "var(--success)" }}>Magic-Link gesendet an {email}</p>
-          ) : sent && verifyToken ? (
+          {sent && !devMode ? (
+            <div style={{ textAlign: "center" }}>
+              <p style={{ color: "var(--success)", marginBottom: "0.5rem" }}>Login-Link gesendet an {email}</p>
+              <p style={{ fontSize: "0.75rem", color: "var(--fg-3)" }}>
+                Check dein Postfach — der Link ist 15 Minuten gültig.
+              </p>
+              <button className="btn btn-ghost btn-sm" style={{ marginTop: "1rem" }} onClick={() => setSent(false)}>
+                Andere Email verwenden
+              </button>
+            </div>
+          ) : sent && devMode ? (
             <>
-              <p style={{ marginBottom: "0.75rem", fontSize: "0.8125rem", color: "var(--fg-3)" }}>Dev-Modus: Token eingeben zum Einloggen</p>
+              <p style={{ marginBottom: "0.75rem", fontSize: "0.8125rem", color: "var(--fg-3)" }}>
+                Dev-Modus (kein Email-Versand konfiguriert): Token bestätigen zum Einloggen
+              </p>
               <input
                 className="input"
                 value={verifyToken}
@@ -600,13 +810,15 @@ function LoginRedirect() {
                 placeholder="magic-link-token"
                 style={{ marginBottom: "0.75rem" }}
               />
-              <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={handleVerify}>
-                Einloggen
+              <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={handleVerify} disabled={busy}>
+                {busy ? "Prüfe..." : "Einloggen"}
               </button>
             </>
           ) : (
             <>
-              <p style={{ marginBottom: "1rem", fontSize: "0.8125rem", color: "var(--fg-3)" }}>Einloggen mit Magic-Link</p>
+              <p style={{ marginBottom: "1rem", fontSize: "0.8125rem", color: "var(--fg-3)" }}>
+                Einloggen oder Account erstellen — mit Magic-Link, ohne Passwort.
+              </p>
               <input
                 className="input"
                 type="email"
@@ -615,9 +827,10 @@ function LoginRedirect() {
                 onChange={(e) => setEmail(e.target.value)}
                 style={{ marginBottom: "0.75rem" }}
                 onKeyDown={(e) => e.key === "Enter" && handleRequest()}
+                autoFocus
               />
-              <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={handleRequest}>
-                Magic-Link anfordern
+              <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={handleRequest} disabled={busy}>
+                {busy ? "Sende..." : "Magic-Link anfordern"}
               </button>
             </>
           )}
