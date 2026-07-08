@@ -8,7 +8,13 @@ import { api } from "./_generated/api";
 
 export const runDailyBackup = action({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<{
+    success: boolean;
+    backed: number;
+    failed: number;
+    totalUsers: number;
+    timestamp: string;
+  }> => {
     // Hole alle User
     const users = await ctx.runQuery(api.backup.getAllUsers, {});
 

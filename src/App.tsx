@@ -499,7 +499,7 @@ export default function App() {
           <div className="skill-card">
             <div className="skill-header">
               <div>
-                <span className="feature-label">FÜR DEVELOPER</span>
+                <span className="feature-label">FÜR ENTWICKLER</span>
                 <h3 style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: "0.5rem" }}>Faktox Invoice Agent</h3>
                 <p style={{ fontSize: "0.875rem", color: "var(--fg-2)", marginTop: "0.5rem" }}>
                   13 Python-Scripts + SKILL.md + Templates. DACH-konform, mit AI Foto-Scan,

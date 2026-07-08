@@ -51,7 +51,7 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
 
   const navItems = [
     { id: "dashboard" as Page, icon: "home", label: "Dashboard" },
-    { id: "analytics" as Page, icon: "chart", label: "Analytics" },
+    { id: "analytics" as Page, icon: "chart", label: "Auswertungen" },
     { id: "invoices" as Page, icon: "doc", label: "Aufträge" },
     { id: "incoming" as Page, icon: "inbox", label: "Eingang" },
     { id: "customers" as Page, icon: "users", label: "Kunden" },
@@ -97,7 +97,7 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
             </button>
           )}
           <button className="btn btn-sm btn-ghost" onClick={onLogout} style={{ width: "100%", justifyContent: "center" }}>
-            Logout
+            Abmelden
           </button>
         </div>
       </aside>
