@@ -124,7 +124,6 @@ export const storno = mutation({
       throw new Error(`Rechnung kann nicht storniert werden (Status: ${invoice.status})`);
     }
     if (invoice.stornoOf) throw new Error("Storno-Rechnung kann nicht storniert werden");
-    if (invoice.status === "storno") throw new Error("Bereits storniert");
 
     // Generate storno number (ST- prefix, same sequence as invoices)
     const year = new Date().getFullYear();
