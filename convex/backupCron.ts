@@ -42,7 +42,7 @@ export const runDailyBackup = action({
           ctx.runQuery(api.backup.getUserInvoices, { userId: user._id }),
           ctx.runQuery(api.backup.getUsersIncoming, { userId: user._id }),
           ctx.runQuery(api.backup.getUserDunningLetters, { userId: user._id }),
-          ctx.runQuery(api.backup.getUsersNumberSequences, { userId: user._id }),
+          ctx.runQuery(api.backup.getUserNumberSequences, { userId: user._id }),
           ctx.runQuery(api.backup.getUsersSettings, { userId: user._id }),
           ctx.runQuery(api.backup.getUsersProfile, { userId: user._id }),
           ctx.runQuery(api.backup.getUserAuditLog, { userId: user._id }),
