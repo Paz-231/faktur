@@ -59,10 +59,36 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
     { id: "settings" as Page, icon: "gear", label: "Einstellungen" },
   ];
 
+  /* Mobile Nav State */
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <div className="app" data-theme={theme}>
-      {/* Sidebar — Desktop */}
-      <aside className="sidebar">
+      {/* Mobile Top Bar */}
+      <div className="mobile-top-bar" style={{
+        display: "none",
+      }}>
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Menue"
+        >
+          <span style={{ fontSize: "1.25rem", lineHeight: 1 }}>≡</span>
+        </button>
+        <div className="sidebar-logo" style={{ border: "none", margin: 0, padding: 0, fontSize: "1rem" }}>
+          Faktox<span>.</span>
+        </div>
+        <button
+          className="theme-toggle"
+          onClick={toggleTheme}
+          style={{ fontSize: "0.75rem" }}
+        >
+          {theme === "dark" ? "●" : "○"}
+        </button>
+      </div>
+
+      {/* Sidebar — Desktop + Mobile slide-in */}
+      <aside className={`sidebar ${mobileMenuOpen ? "open" : ""}`}>
         <div className="sidebar-logo">
           Faktox<span>.</span>
         </div>
@@ -71,7 +97,7 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
             <a
               key={item.id}
               className={page === item.id ? "active" : ""}
-              onClick={() => setPage(item.id)}
+              onClick={() => { setPage(item.id); setMobileMenuOpen(false); }}
             >
               <span className="icon"><Icon name={item.icon} /></span>
               {item.label}
@@ -101,6 +127,11 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
           </button>
         </div>
       </aside>
+
+      {/* Mobile backdrop */}
+      {mobileMenuOpen && (
+        <div className="sidebar-backdrop" onClick={() => setMobileMenuOpen(false)} />
+      )}
 
       {/* Main */}
       <main className="main fade-in">

@@ -37,6 +37,7 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
 
 export default function App() {
   const [showLogin, setShowLogin] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [skillEmail, setSkillEmail] = useState("");
   const [skillBuying, setSkillBuying] = useState(false);
@@ -169,7 +170,39 @@ export default function App() {
               Kostenlos starten
             </button>
           </div>
+          {/* Mobile menu button */}
+          <button
+            className="landing-nav-mobile-btn"
+            onClick={() => setMobileNavOpen(!mobileNavOpen)}
+            aria-label="Menue"
+          >
+            <span style={{ fontSize: "1.125rem", lineHeight: 1 }}>≡</span>
+          </button>
         </nav>
+
+        {/* Mobile drawer */}
+        {mobileNavOpen && (
+          <>
+            <div className="landing-nav-mobile-backdrop open" onClick={() => setMobileNavOpen(false)} />
+            <div className="landing-nav-mobile-drawer open">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                <div className="landing-nav-logo" style={{ fontSize: "1.125rem" }}>Faktox<span>.</span></div>
+                <button
+                  className="landing-nav-mobile-btn"
+                  onClick={() => setMobileNavOpen(false)}
+                  aria-label="Schliessen"
+                  style={{ border: "none", fontSize: "1.25rem" }}
+                >×</button>
+              </div>
+              <a onClick={() => { scrollTo("features"); setMobileNavOpen(false); }}>Features</a>
+              <a onClick={() => { scrollTo("how"); setMobileNavOpen(false); }}>So funktioniert's</a>
+              <a onClick={() => { scrollTo("pricing"); setMobileNavOpen(false); }}>Preise</a>
+              <a onClick={() => { scrollTo("faq"); setMobileNavOpen(false); }}>FAQ</a>
+              <button className="btn btn-sm" onClick={() => { openLogin(); setMobileNavOpen(false); }}>Einloggen</button>
+              <button className="btn btn-primary btn-sm" onClick={() => { scrollTo("start"); setMobileNavOpen(false); }}>Kostenlos starten</button>
+            </div>
+          </>
+        )}
 
         {/* Hero */}
         <motion.section className="hero" id="start" style={{ y: heroY, opacity: heroOpacity }}>

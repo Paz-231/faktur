@@ -20,6 +20,7 @@ import type * as fileUpload from "../fileUpload.js";
 import type * as http from "../http.js";
 import type * as incoming from "../incoming.js";
 import type * as invoices from "../invoices.js";
+import type * as pdfBuilder from "../pdfBuilder.js";
 import type * as profile from "../profile.js";
 import type * as sessions from "../sessions.js";
 import type * as settings from "../settings.js";
@@ -48,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   incoming: typeof incoming;
   invoices: typeof invoices;
+  pdfBuilder: typeof pdfBuilder;
   profile: typeof profile;
   sessions: typeof sessions;
   settings: typeof settings;
