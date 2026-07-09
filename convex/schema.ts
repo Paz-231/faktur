@@ -115,7 +115,9 @@ export default defineSchema({
     // Status: draft → sent → confirmed → (generiert Auftrag) | discarded
     status: v.string(),
     sentDate: v.optional(v.string()),
+    sentTo: v.optional(v.string()),
     confirmedDate: v.optional(v.string()),
+    pdfStorageId: v.optional(v.id("_storage")),
     // Verknüpfung
     auftragId: v.optional(v.id("auftrags")), // Auftrag der aus diesem Angebot entstand
     // Sonstiges
@@ -161,6 +163,10 @@ export default defineSchema({
     status: v.string(),
     confirmedDate: v.optional(v.string()),
     discardedDate: v.optional(v.string()),
+    // Versand (Auftragsbestätigung per Email)
+    sentDate: v.optional(v.string()),
+    sentTo: v.optional(v.string()),
+    pdfStorageId: v.optional(v.id("_storage")),
     // Verknüpfung
     angebotId: v.optional(v.id("angebots")), // Angebot aus dem dieser Auftrag entstand
     rechnungIds: v.optional(v.array(v.id("outgoingInvoices"))), // Rechnungen aus diesem Auftrag
@@ -214,6 +220,9 @@ export default defineSchema({
     status: v.string(),
     lockedAt: v.optional(v.number()), // Timestamp wann Rechnung final wurde
     paidDate: v.optional(v.string()),
+    // Versand per Email (ändert den Status NICHT — Rechnung bleibt final)
+    sentDate: v.optional(v.string()),
+    sentTo: v.optional(v.string()),
     // Storno
     stornoOf: v.optional(v.string()), // Original-Rechnungsnummer
     stornoNumber: v.optional(v.string()), // STORNO-RE-Nummer

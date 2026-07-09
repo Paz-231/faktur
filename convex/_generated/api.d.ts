@@ -15,6 +15,7 @@ import type * as backup from "../backup.js";
 import type * as backupCron from "../backupCron.js";
 import type * as crons from "../crons.js";
 import type * as customers from "../customers.js";
+import type * as documents from "../documents.js";
 import type * as fileUpload from "../fileUpload.js";
 import type * as http from "../http.js";
 import type * as incoming from "../incoming.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   backupCron: typeof backupCron;
   crons: typeof crons;
   customers: typeof customers;
+  documents: typeof documents;
   fileUpload: typeof fileUpload;
   http: typeof http;
   incoming: typeof incoming;

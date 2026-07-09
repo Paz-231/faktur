@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../convex/_generated/api";
 
 interface AuftragDetailProps {
@@ -7,6 +7,15 @@ interface AuftragDetailProps {
   userId: string;
   onClose: () => void;
   onRefresh: () => void;
+}
+
+type DocKind = "rechnung" | "angebot" | "auftrag";
+
+interface SendTarget {
+  kind: DocKind;
+  docId: string;
+  number: string;
+  label: string; // "Rechnung" | "Honorarnote" | "Angebot" | "Auftragsbestätigung"
 }
 
 const TAX_LABELS: Record<string, string> = {
@@ -20,6 +29,7 @@ const TAX_LABELS: Record<string, string> = {
 export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: AuftragDetailProps) {
   const detail = useQuery(api.auftrags.getDetail, { auftragId: auftragId as any });
   const settings = useQuery(api.settings.get, { userId: userId as any });
+  const profile = useQuery(api.profile.get, { userId: userId as any });
 
   const createAngebot = useMutation(api.auftrags.createAngebotFromAuftrag);
   const createRechnung = useMutation(api.auftrags.createRechnungFromAuftrag);
@@ -28,8 +38,28 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
   const angebotMarkSent = useMutation(api.angebots.markSent);
   const angebotConfirm = useMutation(api.angebots.confirm);
   const stornoRechnung = useMutation(api.invoices.storno);
+  const generatePdfUrl = useAction(api.documents.generatePdfUrl);
 
   const [loading, setLoading] = useState<string | null>(null);
+  const [sendTarget, setSendTarget] = useState<SendTarget | null>(null);
+
+  // Kunden-Email für die Vorbelegung des Versand-Dialogs
+  const customer = useQuery(
+    api.customers.getById,
+    detail?.auftrag?.customerId ? { customerId: detail.auftrag.customerId } : "skip"
+  );
+
+  const handleOpenPdf = async (kind: DocKind, docId: string) => {
+    setLoading(`pdf-${docId}`);
+    try {
+      const { url } = await generatePdfUrl({ kind, docId });
+      window.open(url, "_blank");
+    } catch (err: any) {
+      alert(err.message || "PDF konnte nicht erstellt werden");
+    } finally {
+      setLoading(null);
+    }
+  };
 
   const money = (v: number) => `€ ${(v || 0).toFixed(2).replace(".", ",")}`;
 
@@ -230,8 +260,24 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
           )}
           {auftrag.status === "confirmed" && (
             <div style={{ marginBottom: "1.5rem", padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--success)", fontSize: "0.8125rem" }}>
-              Auftrag bestätigt am {auftrag.confirmedDate}
-              {settings?.rechnungMode === "auto" && " · Rechnung automatisch generiert"}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                <span>
+                  Auftrag bestätigt am {auftrag.confirmedDate}
+                  {settings?.rechnungMode === "auto" && " · Rechnung automatisch generiert"}
+                  {auftrag.sentDate && ` · Bestätigung gesendet: ${auftrag.sentDate}`}
+                </span>
+                <span style={{ display: "flex", gap: "0.5rem" }}>
+                  <button className="btn btn-sm" onClick={() => handleOpenPdf("auftrag", auftrag._id)} disabled={loading === `pdf-${auftrag._id}`}>
+                    {loading === `pdf-${auftrag._id}` ? "Erstelle..." : "PDF"}
+                  </button>
+                  <button
+                    className="btn btn-sm"
+                    onClick={() => setSendTarget({ kind: "auftrag", docId: auftrag._id, number: auftrag.number, label: "Auftragsbestätigung" })}
+                  >
+                    Per Email senden
+                  </button>
+                </span>
+              </div>
             </div>
           )}
 
@@ -255,14 +301,25 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
               </div>
               <div style={{ fontSize: "0.75rem", color: "var(--fg-3)" }}>
                 Erstellt: {angebot.date}
-                {angebot.sentDate && ` · Gesendet: ${angebot.sentDate}`}
+                {angebot.sentDate && ` · Gesendet: ${angebot.sentDate}${angebot.sentTo ? ` an ${angebot.sentTo}` : ""}`}
                 {angebot.confirmedDate && ` · Bestätigt: ${angebot.confirmedDate}`}
               </div>
-              {angebot.status === "draft" && (
-                <button className="btn btn-sm" style={{ marginTop: "0.5rem" }} onClick={handleAngebotSend} disabled={loading === "angebot-send"}>
-                  {loading === "angebot-send" ? "Sende..." : "» Angebot versenden"}
+              <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+                <button className="btn btn-sm" onClick={() => handleOpenPdf("angebot", angebot._id)} disabled={loading === `pdf-${angebot._id}`}>
+                  {loading === `pdf-${angebot._id}` ? "Erstelle..." : "PDF"}
                 </button>
-              )}
+                <button
+                  className="btn btn-sm btn-primary"
+                  onClick={() => setSendTarget({ kind: "angebot", docId: angebot._id, number: angebot.number, label: "Angebot" })}
+                >
+                  Per Email senden
+                </button>
+                {angebot.status === "draft" && (
+                  <button className="btn btn-sm btn-ghost" onClick={handleAngebotSend} disabled={loading === "angebot-send"} title="Ohne Email nur den Status auf 'Gesendet' setzen">
+                    {loading === "angebot-send" ? "..." : "Als gesendet markieren"}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -298,18 +355,32 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
                   <div style={{ fontSize: "0.75rem", color: "var(--fg-3)", marginTop: "0.25rem" }}>
                     {r.type} · {r.date}
                     {r.paidDate && ` · Bezahlt: ${r.paidDate}`}
+                    {r.sentDate && ` · Gesendet: ${r.sentDate}${r.sentTo ? ` an ${r.sentTo}` : ""}`}
                   </div>
-                  {/* Storno Button — nur für final/paid Rechnungen */}
-                  {(r.status === "final" || r.status === "paid") && !r.stornoOf && (
-                    <button
-                      className="btn btn-sm"
-                      style={{ marginTop: "0.5rem", color: "var(--danger)" }}
-                      onClick={() => handleStorno(r._id, r.number)}
-                      disabled={loading === `storno-${r._id}`}
-                    >
-                      {loading === `storno-${r._id}` ? "Storniere..." : "Storno erstellen"}
+                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+                    <button className="btn btn-sm" onClick={() => handleOpenPdf("rechnung", r._id)} disabled={loading === `pdf-${r._id}`}>
+                      {loading === `pdf-${r._id}` ? "Erstelle..." : "PDF"}
                     </button>
-                  )}
+                    {r.status !== "storno" && !r.stornoOf && (
+                      <button
+                        className="btn btn-sm btn-primary"
+                        onClick={() => setSendTarget({ kind: "rechnung", docId: r._id, number: r.number, label: r.type || "Rechnung" })}
+                      >
+                        Per Email senden
+                      </button>
+                    )}
+                    {/* Storno Button — nur für final/paid Rechnungen */}
+                    {(r.status === "final" || r.status === "paid") && !r.stornoOf && (
+                      <button
+                        className="btn btn-sm"
+                        style={{ color: "var(--danger)" }}
+                        onClick={() => handleStorno(r._id, r.number)}
+                        disabled={loading === `storno-${r._id}`}
+                      >
+                        {loading === `storno-${r._id}` ? "Storniere..." : "Storno erstellen"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
               {auftrag.status === "confirmed" && (
@@ -346,6 +417,132 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
 
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Schließen</button>
+        </div>
+      </div>
+
+      {/* Versand-Dialog (im Modal-DOM, stopPropagation verhindert Schließen) */}
+      {sendTarget && (
+        <SendDocumentModal
+          target={sendTarget}
+          defaultTo={customer?.email || ""}
+          senderName={profile?.name || ""}
+          onClose={() => setSendTarget(null)}
+          onSent={() => {
+            setSendTarget(null);
+            onRefresh();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// Versand-Dialog — PDF wird serverseitig erzeugt und per
+// Email (Resend) mit Anhang an den Kunden geschickt
+// ═══════════════════════════════════════════════════════════
+function SendDocumentModal({
+  target,
+  defaultTo,
+  senderName,
+  onClose,
+  onSent,
+}: {
+  target: SendTarget;
+  defaultTo: string;
+  senderName: string;
+  onClose: () => void;
+  onSent: () => void;
+}) {
+  const sendByEmail = useAction(api.documents.sendByEmail);
+  const [to, setTo] = useState(defaultTo);
+  const [subject, setSubject] = useState(
+    `${target.label} ${target.number}${senderName ? ` — ${senderName}` : ""}`
+  );
+  const [message, setMessage] = useState(
+    `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie ${
+      target.label === "Angebot" ? "unser Angebot" :
+      target.label === "Auftragsbestätigung" ? "die Auftragsbestätigung" :
+      `die ${target.label}`
+    } ${target.number} als PDF.\n\nBei Fragen stehen wir gerne zur Verfügung.\n\nMit freundlichen Grüßen${senderName ? `\n${senderName}` : ""}`
+  );
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSend = async () => {
+    setError("");
+    if (!to.includes("@")) {
+      setError("Bitte eine gültige Email-Adresse eingeben.");
+      return;
+    }
+    setSending(true);
+    try {
+      await sendByEmail({
+        kind: target.kind,
+        docId: target.docId,
+        to: to.trim(),
+        subject,
+        message,
+      });
+      onSent();
+    } catch (err: any) {
+      setError(err.message || "Versand fehlgeschlagen");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+        <div className="modal-header">
+          <h2 style={{ fontSize: "1.125rem", fontWeight: 600 }}>{target.label} {target.number} senden</h2>
+          <button className="btn btn-ghost btn-icon" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="field-group">
+            <label className="label">Empfänger-Email</label>
+            <input
+              className="input"
+              type="email"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              placeholder="kunde@email.at"
+              autoFocus={!defaultTo}
+            />
+            {!defaultTo && (
+              <div style={{ fontSize: "0.6875rem", color: "var(--fg-3)", marginTop: "0.375rem" }}>
+                Tipp: Hinterlege die Email beim Kunden, dann ist sie hier vorausgefüllt.
+              </div>
+            )}
+          </div>
+          <div className="field-group">
+            <label className="label">Betreff</label>
+            <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} />
+          </div>
+          <div className="field-group">
+            <label className="label">Nachricht</label>
+            <textarea
+              className="textarea"
+              rows={8}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+            />
+          </div>
+          <div style={{ padding: "0.625rem 0.75rem", background: "var(--surface-2)", border: "1px solid var(--border)", fontSize: "0.75rem", color: "var(--fg-3)" }}>
+            Das PDF wird automatisch erzeugt und als Anhang mitgeschickt.
+          </div>
+          {error && (
+            <div style={{ marginTop: "0.75rem", padding: "0.75rem", border: "1px solid var(--danger)", color: "var(--danger)", fontSize: "0.8125rem" }}>
+              {error}
+            </div>
+          )}
+        </div>
+        <div className="modal-footer">
+          <button className="btn" onClick={onClose} disabled={sending}>Abbrechen</button>
+          <button className="btn btn-primary" onClick={handleSend} disabled={sending}>
+            {sending ? "Sende..." : "Jetzt senden"}
+          </button>
         </div>
       </div>
     </div>
