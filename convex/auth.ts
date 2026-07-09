@@ -15,6 +15,9 @@ function generateToken(): string {
 // Token expiry: 15 minutes
 const TOKEN_EXPIRY_MS = 15 * 60 * 1000;
 
+// Rate limiting: 60 seconds between magic link requests per email
+const RATE_LIMIT_MS = 60 * 1000;
+
 // Step 1: Request magic link (user enters email on landing page)
 export const requestMagicLink = mutation({
   args: { email: v.string() },
@@ -23,10 +26,6 @@ export const requestMagicLink = mutation({
     if (!email.includes("@")) {
       throw new Error("Ungültige Email-Adresse");
     }
-
-    // Generate secure random token
-    const token = generateToken();
-    const expiresAt = Date.now() + TOKEN_EXPIRY_MS;
 
     // Find or create user
     let user = await ctx.db
@@ -44,6 +43,19 @@ export const requestMagicLink = mutation({
       });
       user = await ctx.db.get(userId);
     }
+
+    // Rate limiting: check if a magic link was requested recently
+    if (user!.magicLinkExpiry && user!.magicLinkToken) {
+      const timeSinceLastRequest = Date.now() - (user!.magicLinkExpiry - TOKEN_EXPIRY_MS);
+      if (timeSinceLastRequest < RATE_LIMIT_MS) {
+        const waitSec = Math.ceil((RATE_LIMIT_MS - timeSinceLastRequest) / 1000);
+        throw new Error(`Bitte warte ${waitSec}s vor der nächsten Anfrage`);
+      }
+    }
+
+    // Generate secure random token
+    const token = generateToken();
+    const expiresAt = Date.now() + TOKEN_EXPIRY_MS;
 
     // Store magic link token
     await ctx.db.patch(user!._id, {
@@ -81,9 +93,11 @@ export const verifyMagicLink = query({
       return { valid: false, error: "Kein Token" };
     }
 
-    // Find user by token
-    const allUsers = await ctx.db.query("users").collect();
-    const user = allUsers.find((u) => u.magicLinkToken === args.token);
+    // Find user by token (using index — no full table scan)
+    const user = await ctx.db
+      .query("users")
+      .withIndex("magicLinkToken", (q) => q.eq("magicLinkToken", args.token))
+      .first();
 
     if (!user) {
       return { valid: false, error: "Token nicht gefunden" };
@@ -106,8 +120,10 @@ export const verifyMagicLink = query({
 export const completeLogin = mutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {
-    const allUsers = await ctx.db.query("users").collect();
-    const user = allUsers.find((u) => u.magicLinkToken === args.token);
+    const user = await ctx.db
+      .query("users")
+      .withIndex("magicLinkToken", (q) => q.eq("magicLinkToken", args.token))
+      .first();
 
     if (!user || !user.magicLinkExpiry || Date.now() > user.magicLinkExpiry) {
       throw new Error("Token ungültig oder abgelaufen");
@@ -298,8 +314,10 @@ export const getUserById = internalQuery({
 export const getUserByStripeCustomer = internalQuery({
   args: { customerId: v.string() },
   handler: async (ctx, args) => {
-    const allUsers = await ctx.db.query("users").collect();
-    return allUsers.find((u) => u.stripeCustomerId === args.customerId) || null;
+    return await ctx.db
+      .query("users")
+      .withIndex("stripeCustomerId", (q) => q.eq("stripeCustomerId", args.customerId))
+      .first() || null;
   },
 });
 

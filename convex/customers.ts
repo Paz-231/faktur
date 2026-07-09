@@ -14,7 +14,7 @@ export const list = query({
       .query("customers")
       .withIndex("userId", (q) => q.eq("userId", userId))
       .order("desc")
-      .collect();
+      .take(100);
   },
 });
 

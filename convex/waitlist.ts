@@ -30,7 +30,7 @@ export const join = mutation({
 export const count = query({
   args: {},
   handler: async (ctx) => {
-    const all = await ctx.db.query("waitlist").collect();
+    const all = await ctx.db.query("waitlist").take(10000);
     return all.length;
   },
 });

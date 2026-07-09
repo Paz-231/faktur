@@ -15,7 +15,7 @@ export const list = query({
       .query("outgoingInvoices")
       .withIndex("userId", (q) => q.eq("userId", userId))
       .order("desc")
-      .collect();
+      .take(100);
   },
 });
 

@@ -22,7 +22,7 @@ export default defineSchema({
     // Timestamps
     createdAt: v.number(),
     lastLoginAt: v.optional(v.number()),
-  }).index("email", ["email"]),
+  }).index("email", ["email"]).index("magicLinkToken", ["magicLinkToken"]).index("stripeCustomerId", ["stripeCustomerId"]),
 
   // ─── Business Profiles (Unternehmensprofil pro User) ────────
   // Versioniert: Steuerstatus-Wechsel werden mit Gültigkeitsdatum gespeichert

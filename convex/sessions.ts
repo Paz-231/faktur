@@ -73,6 +73,27 @@ export const destroySession = mutation({
   },
 });
 
+// Cleanup expired sessions — called by cron every 6 hours
+export const cleanupExpired = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const expired = await ctx.db
+      .query("sessions")
+      .filter((q) => q.lt(q.field("expiresAt"), now))
+      .take(500);
+
+    let deleted = 0;
+    for (const session of expired) {
+      await ctx.db.delete(session._id);
+      deleted++;
+    }
+
+    console.log(`[Session Cleanup] Deleted ${deleted} expired sessions`);
+    return { deleted };
+  },
+});
+
 // Helper: generate secure random token
 function generateToken(): string {
   const array = new Uint8Array(48);

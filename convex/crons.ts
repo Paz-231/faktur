@@ -2,21 +2,23 @@ import { cronJobs } from "convex/server";
 import { api } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════
-// Convex Internal Cron — kein externer HTTP Call nötig,
-// kein ADMIN_KEY. Backup läuft komplett innerhalb Convex.
-//
-// 05:00 CET = 03:00 UTC (Sommerzeit)
-// 05:00 CET = 04:00 UTC (Winterzeit)
-// Wir nehmen 03:00 UTC — Sommerzeit ist korrekt,
-// Winterzeit läuft 1h früher (04:00 MEZ) — akzeptabel.
+// Convex Internal Cron — automated maintenance tasks
 // ═══════════════════════════════════════════════════════════
 
 const crons = cronJobs();
 
+// Daily backup at 03:00 UTC (= 05:00 CET summer)
 crons.daily(
   "faktox-daily-backup",
   { hourUTC: 3, minuteUTC: 0 },
   api.backupCron.runDailyBackup,
+);
+
+// Session cleanup: delete expired sessions every 6 hours
+crons.interval(
+  "faktox-session-cleanup",
+  { hours: 6 },
+  api.sessions.cleanupExpired,
 );
 
 export default crons;

@@ -11,6 +11,7 @@
 import type * as angebots from "../angebots.js";
 import type * as auftrags from "../auftrags.js";
 import type * as auth from "../auth.js";
+import type * as authHelper from "../authHelper.js";
 import type * as backup from "../backup.js";
 import type * as backupCron from "../backupCron.js";
 import type * as crons from "../crons.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   angebots: typeof angebots;
   auftrags: typeof auftrags;
   auth: typeof auth;
+  authHelper: typeof authHelper;
   backup: typeof backup;
   backupCron: typeof backupCron;
   crons: typeof crons;

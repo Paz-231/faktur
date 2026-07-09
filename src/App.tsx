@@ -1,11 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useMutation } from "convex/react";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
-import { SkillDownloadPage } from "./SkillDownloadPage";
-import { Dashboard } from "./Dashboard";
 import { useAuth } from "./useAuth";
 import { api } from "../convex/_generated/api";
 import { convexSiteUrl } from "./lib";
+
+// Code-split: Dashboard and SkillDownloadPage are lazy-loaded
+// to reduce initial bundle for landing page visitors
+const Dashboard = lazy(() => import("./Dashboard").then(m => ({ default: m.Dashboard })));
+const SkillDownloadPage = lazy(() => import("./SkillDownloadPage").then(m => ({ default: m.SkillDownloadPage })));
 
 // ── Minimal SVG Icons ───────────────────────────────────
 function Icon({ name, size = 20 }: { name: string; size?: number }) {
@@ -121,6 +124,7 @@ export default function App() {
     <div className="landing">
       {/* If authenticated (server-validated), show Dashboard */}
       {auth.userId && !downloadToken && (
+        <Suspense fallback={<div style={{ padding: "2rem", textAlign: "center", color: "var(--fg-3)" }}>Lade...</div>}>
         <Dashboard
           auth={{
             userId: auth.userId,
@@ -131,6 +135,7 @@ export default function App() {
           }}
           onLogout={logout}
         />
+        </Suspense>
       )}
 
       {/* While validating a stored session, don't flash the landing page */}
@@ -670,7 +675,9 @@ export default function App() {
 
       {/* Download page for skill buyers (works on both landing + dashboard) */}
       {downloadToken && (
+        <Suspense fallback={<div style={{ padding: "2rem", textAlign: "center", color: "var(--fg-3)" }}>Lade...</div>}>
         <SkillDownloadPage token={downloadToken} />
+        </Suspense>
       )}
     </div>
   );
