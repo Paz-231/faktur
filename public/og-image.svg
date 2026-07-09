@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#0A0A0A"/>
+  
+  <!-- Accent line top -->
+  <rect x="0" y="0" width="1200" height="4" fill="#E8A48C"/>
+  
+  <!-- Logo / Document icon -->
+  <g transform="translate(100, 180)">
+    <rect x="0" y="0" width="80" height="100" fill="none" stroke="#E8A48C" stroke-width="3"/>
+    <line x1="14" y1="24" x2="66" y2="24" stroke="#E8A48C" stroke-width="2.5"/>
+    <line x1="14" y1="40" x2="66" y2="40" stroke="#E8A48C" stroke-width="2.5"/>
+    <line x1="14" y1="56" x2="50" y2="56" stroke="#E8A48C" stroke-width="2.5"/>
+    <path d="M16 78 L30 92 L54 68" fill="none" stroke="#E8A48C" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter"/>
+  </g>
+  
+  <!-- Brand -->
+  <text x="210" y="235" fill="#F5F5F5" font-family="monospace" font-size="64" font-weight="700" letter-spacing="-3">
+    Faktox<tspan fill="#E8A48C">.</tspan>
+  </text>
+  
+  <!-- Tagline -->
+  <text x="210" y="300" fill="#707070" font-family="monospace" font-size="28" font-weight="400">
+    Rechnungen + Buchhaltung mit KI
+  </text>
+  
+  <!-- Sub-tagline -->
+  <text x="210" y="345" fill="#B0B0B0" font-family="monospace" font-size="22" font-weight="400">
+    DACH-konform. Foto machen, fertig.
+  </text>
+  
+  <!-- Bottom accent -->
+  <rect x="100" y="420" width="200" height="2" fill="#E8A48C"/>
+  
+  <!-- Stats -->
+  <text x="100" y="470" fill="#E8A48C" font-family="monospace" font-size="32" font-weight="700">30 Sek.</text>
+  <text x="260" y="470" fill="#707070" font-family="monospace" font-size="18">BIS ZUR FERTIGEN RECHNUNG</text>
+  
+  <text x="100" y="520" fill="#E8A48C" font-family="monospace" font-size="32" font-weight="700">100%</text>
+  <text x="220" y="520" fill="#707070" font-family="monospace" font-size="18">AT &amp; DE KONFORM (USTG)</text>
+  
+  <!-- Footer -->
+  <text x="100" y="580" fill="#404040" font-family="monospace" font-size="16">faktox.online</text>
+</svg>
