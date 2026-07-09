@@ -41,6 +41,13 @@ function Icon({ name, size = 20 }: { name: string; size?: number }) {
 export default function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [navScrolled, setNavScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setNavScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
   const [loginEmail, setLoginEmail] = useState("");
   const [skillEmail, setSkillEmail] = useState("");
   const [skillBuying, setSkillBuying] = useState(false);
@@ -164,7 +171,7 @@ export default function App() {
 
       <div className="landing-content">
         {/* Nav */}
-        <nav className="landing-nav">
+        <nav className={`landing-nav ${navScrolled ? "scrolled" : ""}`}>
           <div className="landing-nav-logo">Faktox<span>.</span></div>
           <div className="landing-nav-links">
             <a onClick={() => scrollTo("features")}>Features</a>

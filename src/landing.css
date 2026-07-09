@@ -25,7 +25,7 @@
   z-index: 1;
 }
 
-/* Nav — sticky mit Blur, Inhalt auf 1200px zentriert */
+/* Nav — sticky mit Glas-Morph-Effekt */
 .landing-nav {
   position: sticky;
   top: 0;
@@ -34,16 +34,26 @@
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: 1rem 2rem;
+  padding: 0.875rem 2rem;
   padding-inline: max(2rem, calc((100% - 1200px) / 2 + 2rem));
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  transition: background 0.3s ease, border-color 0.3s ease, padding 0.3s ease;
+}
+
+/* Scroll-state: stronger glass when scrolled */
+.landing-nav.scrolled {
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
 }
 
 @supports not (background: color-mix(in srgb, red 50%, transparent)) {
-  .landing-nav { background: var(--bg); }
+  .landing-nav { background: rgba(10, 10, 10, 0.55); }
+  .landing-nav.scrolled { background: rgba(10, 10, 10, 0.75); }
 }
 
 .landing-nav-logo {
