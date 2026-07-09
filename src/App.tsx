@@ -662,7 +662,35 @@ export default function App() {
 
         {/* Footer */}
         <footer className="landing-footer">
-          <p>Faktox — Rechnungen + Buchhaltung mit KI für Selbständige in AT & DE<br />faktox.online — © 2026 maighty Labs. Keine Steuerberatung.</p>
+          <div className="footer-grid">
+            <div className="footer-col">
+              <div className="footer-brand">Faktox<span>.</span></div>
+              <p>Rechnungen + Buchhaltung mit KI fuer Selbständige in AT & DE.</p>
+            </div>
+            <div className="footer-col">
+              <h4>Produkt</h4>
+              <a onClick={() => scrollTo("features")}>Features</a>
+              <a onClick={() => scrollTo("pricing")}>Preise</a>
+              <a onClick={() => scrollTo("how")}>So funktioniert's</a>
+              <a onClick={() => scrollTo("faq")}>FAQ</a>
+            </div>
+            <div className="footer-col">
+              <h4>Rechtliches</h4>
+              <a href="/legal/impressum">Impressum</a>
+              <a href="/legal/datenschutz">Datenschutz</a>
+              <a href="/legal/agb">AGB</a>
+              <a href="/legal/cookies">Cookie-Richtlinie</a>
+            </div>
+            <div className="footer-col">
+              <h4>Unternehmen</h4>
+              <p>maighty Labs<br />Patrick Gruber<br />Südtiroler Straße 565<br />8962 Gröbming<br />Österreich</p>
+              <a href="https://maighty-labs.com" target="_blank" rel="noopener">maighty-labs.com</a>
+              <a href="mailto:info@maighty-labs.com">info@maighty-labs.com</a>
+            </div>
+          </div>
+          <div className="footer-bottom">
+            <p>© 2026 maighty Labs. Alle Rechte vorbehalten. Faktox ersetzt keine Steuerberatung.</p>
+          </div>
         </footer>
       </div>
 

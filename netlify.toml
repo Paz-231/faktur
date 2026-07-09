@@ -5,7 +5,13 @@
 [build.environment]
   VITE_CONVEX_URL = "https://joyous-deer-167.eu-west-1.convex.cloud"
 
-# SPA redirect — alle Routen zur index.html
+# Legal pages — serve static HTML directly (before SPA redirect)
+[[redirects]]
+  from = "/legal/*"
+  to = "/legal/:splat"
+  status = 200
+
+# SPA redirect — alle anderen Routen zur index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
