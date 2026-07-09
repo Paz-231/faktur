@@ -64,10 +64,8 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
 
   return (
     <div className="app" data-theme={theme}>
-      {/* Mobile Top Bar */}
-      <div className="mobile-top-bar" style={{
-        display: "none",
-      }}>
+      {/* Mobile Top Bar — visible on mobile via CSS media query */}
+      <div className="mobile-top-bar">
         <button
           className="mobile-menu-btn"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

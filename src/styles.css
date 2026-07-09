@@ -173,6 +173,11 @@ small { font-size: 0.75rem; color: var(--fg-3); }
   color: var(--fg);
 }
 
+/* Mobile top bar — hidden on desktop, shown on mobile via media query */
+.mobile-top-bar {
+  display: none;
+}
+
 /* ── Main Content ──────────────────────────────────────────── */
 .main {
   flex: 1;
@@ -566,6 +571,13 @@ tbody tr:hover {
     position: sticky;
     top: 0;
     z-index: 100;
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  /* App layout: column on mobile — top bar above, main below */
+  .app {
+    flex-direction: column;
   }
 
   .mobile-menu-btn {
@@ -602,11 +614,16 @@ tbody tr:hover {
     margin-left: 0;
     padding: 1rem;
     padding-bottom: 4.5rem; /* space for bottom nav */
+    width: 100%;
+    flex: 1;
+    min-width: 0;
   }
 
   /* Bottom nav: scrollable, compact */
   .bottom-nav {
     display: flex;
+    width: 100%;
+    max-width: 100%;
   }
 
   .bottom-nav a {
