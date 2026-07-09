@@ -2,17 +2,16 @@ import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 
 interface DashboardPageProps {
-  auth: { userId: string; email: string; name: string; plan: string };
+  auth: { userId: string; email: string; name: string; plan: string; sessionToken: string };
   onUpgrade: () => void;
 }
 
 export function AnalyticsDashboard({ auth, onUpgrade }: DashboardPageProps) {
   const userId = auth.userId as any;
-
-  // Live queries from Convex
-  const auftrags = useQuery(api.auftrags.list, { userId }) ?? [];
-  const incoming = useQuery(api.incoming.list, { userId }) ?? [];
-  const customers = useQuery(api.customers.list, { userId }) ?? [];
+  const sessionToken = auth.sessionToken;
+  const auftrags = useQuery(api.auftrags.list, { userId, sessionToken }) ?? [];
+  const incoming = useQuery(api.incoming.list, { userId, sessionToken }) ?? [];
+  const customers = useQuery(api.customers.list, { userId, sessionToken }) ?? [];
 
   // Calculate KPIs
   const now = new Date();

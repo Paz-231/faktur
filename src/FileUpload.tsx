@@ -7,10 +7,11 @@ const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
 interface FileUploadProps {
   userId: string;
+  sessionToken: string;
   onUploaded?: () => void;
 }
 
-export function FileUpload({ userId, onUploaded }: FileUploadProps) {
+export function FileUpload({ userId, sessionToken, onUploaded }: FileUploadProps) {
   const [status, setStatus] = useState<"idle" | "uploading" | "scanning" | "done" | "error">("idle");
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -39,7 +40,7 @@ export function FileUpload({ userId, onUploaded }: FileUploadProps) {
 
     try {
       // Step 1: Get upload URL from Convex
-      const uploadUrl = await generateUploadUrl({});
+      const uploadUrl = await generateUploadUrl({ sessionToken });
 
       // Step 2: Upload file directly to Convex Storage
       const uploadResponse = await fetch(uploadUrl, {
@@ -58,6 +59,7 @@ export function FileUpload({ userId, onUploaded }: FileUploadProps) {
       setStatus("scanning");
       await createIncoming({
         userId: userId as any,
+        sessionToken,
         fileStorageId: storageId,
         fileName: file.name,
         fileType: file.type,

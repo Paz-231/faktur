@@ -7,6 +7,7 @@ import { AuftragDetail } from "./AuftragDetail";
 interface CustomerDetailProps {
   customerId: string;
   userId: string;
+  sessionToken: string;
   onClose: () => void;
   onRefresh: () => void;
 }
@@ -19,9 +20,9 @@ const TAX_LABELS: Record<string, string> = {
   befreit: "Befreit (0%)",
 };
 
-export function CustomerDetail({ customerId, userId, onClose, onRefresh }: CustomerDetailProps) {
-  const customer = useQuery(api.customers.getById, { customerId: customerId as any });
-  const documents = useQuery(api.customers.getDocuments, { customerId: customerId as any });
+export function CustomerDetail({ customerId, userId, sessionToken, onClose, onRefresh }: CustomerDetailProps) {
+  const customer = useQuery(api.customers.getById, { customerId: customerId as any, sessionToken });
+  const documents = useQuery(api.customers.getDocuments, { customerId: customerId as any, sessionToken });
 
   const updateCustomer = useMutation(api.customers.update);
   const [editing, setEditing] = useState(false);
@@ -287,6 +288,7 @@ export function CustomerDetail({ customerId, userId, onClose, onRefresh }: Custo
       <AuftragDetail
         auftragId={openAuftragId}
         userId={userId}
+        sessionToken={sessionToken}
         onClose={() => setOpenAuftragId(null)}
         onRefresh={onRefresh}
       />
@@ -297,6 +299,7 @@ export function CustomerDetail({ customerId, userId, onClose, onRefresh }: Custo
     {showCreateAuftrag && (
       <CreateInvoiceModal
         userId={userId}
+        sessionToken={sessionToken}
         initialCustomer={{
           customerId: customer._id,
           name: customer.name,

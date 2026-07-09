@@ -75,14 +75,7 @@ export const destroySession = mutation({
 
 // Helper: generate secure random token
 function generateToken(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  const segments: string[] = [];
-  for (let s = 0; s < 4; s++) {
-    let seg = "";
-    for (let i = 0; i < 32; i++) {
-      seg += chars[Math.floor(Math.random() * chars.length)];
-    }
-    segments.push(seg);
-  }
-  return segments.join("-");
+  const array = new Uint8Array(48);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
 }

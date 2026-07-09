@@ -127,6 +127,7 @@ export default function App() {
             email: auth.email || "",
             name: auth.name || "",
             plan: auth.plan || "free",
+            sessionToken: auth.sessionToken || "",
           }}
           onLogout={logout}
         />

@@ -1,16 +1,18 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "./authHelper";
 
 // ═══════════════════════════════════════════════════════════
 // Incoming Invoices API — Eingangsrechnungen
 // ═══════════════════════════════════════════════════════════
 
 export const list = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     return await ctx.db
       .query("incomingInvoices")
-      .withIndex("userId", (q) => q.eq("userId", args.userId))
+      .withIndex("userId", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
   },
@@ -19,6 +21,7 @@ export const list = query({
 export const create = mutation({
   args: {
     userId: v.id("users"),
+    sessionToken: v.string(),
     number: v.string(),
     date: v.string(),
     deliveryDate: v.optional(v.string()),
@@ -38,15 +41,18 @@ export const create = mutation({
     fileStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const { sessionToken, ...rest } = args;
     const now = Date.now();
     const id = await ctx.db.insert("incomingInvoices", {
-      ...args,
+      ...rest,
+      userId,
       status: "open",
       createdAt: now,
     });
 
     await ctx.db.insert("auditLog", {
-      userId: args.userId,
+      userId,
       action: "incoming_created",
       details: `${args.issuerName} ${args.number} — €${args.grossAmount.toFixed(2)}`,
       timestamp: now,
@@ -59,12 +65,15 @@ export const create = mutation({
 export const markPaid = mutation({
   args: {
     invoiceId: v.id("incomingInvoices"),
+    sessionToken: v.string(),
     paidDate: v.string(),
     paidAmount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const inv = await ctx.db.get(args.invoiceId);
     if (!inv) throw new Error("Invoice not found");
+    if (inv.userId !== userId) throw new Error("Zugriff verweigert");
 
     await ctx.db.patch(args.invoiceId, {
       status: "paid",
@@ -83,11 +92,12 @@ export const markPaid = mutation({
 
 // Summary for dashboard
 export const summary = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const all = await ctx.db
       .query("incomingInvoices")
-      .withIndex("userId", (q) => q.eq("userId", args.userId))
+      .withIndex("userId", (q) => q.eq("userId", userId))
       .collect();
 
     const open = all.filter((i) => i.status === "open");

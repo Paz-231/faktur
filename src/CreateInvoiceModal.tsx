@@ -12,6 +12,7 @@ export interface InitialCustomer {
 
 interface CreateInvoiceModalProps {
   userId: string;
+  sessionToken: string;
   onClose: () => void;
   onCreated?: () => void;
   /** Vorausgewählter Kunde (z.B. aus der Kundendetailseite) */
@@ -35,7 +36,7 @@ const TAX_MODES = [
 
 const UNITS = ["Stunden", "Stück", "Monate", "Pauschal", "Tag", "Quadratmeter"];
 
-export function CreateInvoiceModal({ userId, onClose, onCreated, initialCustomer }: CreateInvoiceModalProps) {
+export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, initialCustomer }: CreateInvoiceModalProps) {
   const [type, setType] = useState<"Honorarnote" | "Rechnung">("Rechnung");
   const [date, setDate] = useState(new Date().toLocaleDateString("de-AT"));
   const [deliveryDate, setDeliveryDate] = useState("");
@@ -46,7 +47,7 @@ export function CreateInvoiceModal({ userId, onClose, onCreated, initialCustomer
   const [recipientUid, setRecipientUid] = useState(initialCustomer?.uid || "");
 
   // Kundenstamm für die Schnellauswahl
-  const customers = useQuery(api.customers.list, { userId: userId as any }) ?? [];
+  const customers = useQuery(api.customers.list, { userId: userId as any, sessionToken }) ?? [];
 
   const handleSelectCustomer = (id: string) => {
     setCustomerId(id);
@@ -125,6 +126,7 @@ export function CreateInvoiceModal({ userId, onClose, onCreated, initialCustomer
 
       await createAuftrag({
         userId: userId as any,
+        sessionToken,
         date,
         deliveryDate: deliveryDate || undefined,
         customerId: (customerId || undefined) as any,

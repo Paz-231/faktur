@@ -1,6 +1,7 @@
 import { query, mutation, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { getAuthUserId } from "./authHelper";
 
 // ═══════════════════════════════════════════════════════════
 // Aufträge API — Pflicht-Dokument vor jeder Rechnung
@@ -45,11 +46,12 @@ function startOfCurrentMonth(): number {
 
 // List all auftrags for a user
 export const list = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     return await ctx.db
       .query("auftrags")
-      .withIndex("userId", (q) => q.eq("userId", args.userId))
+      .withIndex("userId", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
   },
@@ -57,19 +59,24 @@ export const list = query({
 
 // Get single auftrag
 export const get = query({
-  args: { auftragId: v.id("auftrags") },
+  args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.auftragId);
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const auftrag = await ctx.db.get(args.auftragId);
+    if (!auftrag) return null;
+    if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
+    return auftrag;
   },
 });
 
 // Get next auftrag number
 export const getNextNumber = mutation({
-  args: { userId: v.id("users"), year: v.number() },
+  args: { userId: v.id("users"), sessionToken: v.string(), year: v.number() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const existing = await ctx.db
       .query("numberSequences")
-      .withIndex("userId_year", (q) => q.eq("userId", args.userId).eq("year", args.year))
+      .withIndex("userId_year", (q) => q.eq("userId", userId).eq("year", args.year))
       .first();
 
     if (existing) {
@@ -78,7 +85,7 @@ export const getNextNumber = mutation({
       return `AU-${args.year}-${String(nextNum).padStart(6, "0")}`;
     } else {
       await ctx.db.insert("numberSequences", {
-        userId: args.userId,
+        userId,
         year: args.year,
         nextNumber: 2,
         createdAt: Date.now(),
@@ -92,6 +99,7 @@ export const getNextNumber = mutation({
 export const create = mutation({
   args: {
     userId: v.id("users"),
+    sessionToken: v.string(),
     number: v.optional(v.string()), // wenn nicht gesetzt: atomar aus Nummernkreis
     date: v.string(),
     deliveryDate: v.optional(v.string()),
@@ -121,6 +129,7 @@ export const create = mutation({
     angebotId: v.optional(v.id("angebots")),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const now = Date.now();
 
     // Free-plan limit: max 3 Aufträge pro Monat
@@ -143,8 +152,10 @@ export const create = mutation({
     const number =
       args.number ?? (await nextSequenceNumber(ctx, args.userId, new Date().getFullYear(), "AU"));
 
+    const { sessionToken, ...rest } = args;
     const auftragId = await ctx.db.insert("auftrags", {
-      ...args,
+      ...rest,
+      userId,
       number,
       status: "draft",
       rechnungIds: [],
@@ -162,7 +173,7 @@ export const create = mutation({
     }
 
     await ctx.db.insert("auditLog", {
-      userId: args.userId,
+      userId,
       action: "auftrag_created",
       details: `Auftrag ${number} — €${args.grossAmount.toFixed(2)}`,
       timestamp: now,
@@ -174,10 +185,12 @@ export const create = mutation({
 
 // Confirm auftrag (→ can create rechnung)
 export const confirm = mutation({
-  args: { auftragId: v.id("auftrags") },
+  args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) throw new Error("Auftrag not found");
+    if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
     if (auftrag.status === "discarded") throw new Error("Auftrag was discarded");
 
     await ctx.db.patch(args.auftragId, {
@@ -197,10 +210,12 @@ export const confirm = mutation({
 
 // Discard auftrag
 export const discard = mutation({
-  args: { auftragId: v.id("auftrags") },
+  args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) throw new Error("Auftrag not found");
+    if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
     if (auftrag.status === "confirmed") throw new Error("Cannot discard confirmed auftrag");
 
     await ctx.db.patch(args.auftragId, {
@@ -220,10 +235,12 @@ export const discard = mutation({
 
 // Generate Angebot from Auftrag
 export const createAngebotFromAuftrag = mutation({
-  args: { auftragId: v.id("auftrags") },
+  args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) throw new Error("Auftrag not found");
+    if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
 
     // Generate angebot number (AN- prefix, shared sequence)
     const year = new Date().getFullYear();
@@ -284,10 +301,12 @@ export const createAngebotFromAuftrag = mutation({
 
 // Get full detail: auftrag + angebot + rechnungen + storno
 export const getDetail = query({
-  args: { auftragId: v.id("auftrags") },
+  args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) return null;
+    if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
 
     // Find linked angebot (by auftragId)
     const angebot = await ctx.db
@@ -320,11 +339,14 @@ export const getDetail = query({
 export const createRechnungFromAuftrag = mutation({
   args: {
     auftragId: v.id("auftrags"),
+    sessionToken: v.string(),
     type: v.string(), // "Rechnung" | "Honorarnote"
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) throw new Error("Auftrag not found");
+    if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
     if (auftrag.status === "discarded") throw new Error("Auftrag was discarded");
 
     // Free-plan limit: max 3 Rechnungen pro Monat

@@ -5,6 +5,7 @@ import { api } from "../convex/_generated/api";
 interface AuftragDetailProps {
   auftragId: string;
   userId: string;
+  sessionToken: string;
   onClose: () => void;
   onRefresh: () => void;
 }
@@ -26,10 +27,10 @@ const TAX_LABELS: Record<string, string> = {
   befreit: "Befreit (0%)",
 };
 
-export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: AuftragDetailProps) {
-  const detail = useQuery(api.auftrags.getDetail, { auftragId: auftragId as any });
-  const settings = useQuery(api.settings.get, { userId: userId as any });
-  const profile = useQuery(api.profile.get, { userId: userId as any });
+export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefresh }: AuftragDetailProps) {
+  const detail = useQuery(api.auftrags.getDetail, { auftragId: auftragId as any, sessionToken });
+  const settings = useQuery(api.settings.get, { userId: userId as any, sessionToken });
+  const profile = useQuery(api.profile.get, { userId: userId as any, sessionToken });
 
   const createAngebot = useMutation(api.auftrags.createAngebotFromAuftrag);
   const createRechnung = useMutation(api.auftrags.createRechnungFromAuftrag);
@@ -46,7 +47,7 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
   // Kunden-Email für die Vorbelegung des Versand-Dialogs
   const customer = useQuery(
     api.customers.getById,
-    detail?.auftrag?.customerId ? { customerId: detail.auftrag.customerId } : "skip"
+    detail?.auftrag?.customerId ? { customerId: detail.auftrag.customerId, sessionToken } : "skip"
   );
 
   const handleOpenPdf = async (kind: DocKind, docId: string) => {
@@ -88,10 +89,10 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
   const handleConfirm = async () => {
     setLoading("confirm");
     try {
-      await confirmAuftrag({ auftragId: auftragId as any });
+      await confirmAuftrag({ auftragId: auftragId as any, sessionToken });
       // If auto mode, also create rechnung
       if (settings?.rechnungMode === "auto") {
-        await createRechnung({ auftragId: auftragId as any, type: "Rechnung" });
+        await createRechnung({ auftragId: auftragId as any, type: "Rechnung", sessionToken });
       }
       onRefresh();
     } finally {
@@ -102,7 +103,7 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
   const handleDiscard = async () => {
     setLoading("discard");
     try {
-      await discardAuftrag({ auftragId: auftragId as any });
+      await discardAuftrag({ auftragId: auftragId as any, sessionToken });
       onRefresh();
       onClose();
     } finally {
@@ -113,7 +114,7 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
   const handleCreateAngebot = async () => {
     setLoading("angebot");
     try {
-      await createAngebot({ auftragId: auftragId as any });
+      await createAngebot({ auftragId: auftragId as any, sessionToken });
       onRefresh();
     } finally {
       setLoading(null);
@@ -123,7 +124,7 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
   const handleCreateRechnung = async () => {
     setLoading("rechnung");
     try {
-      await createRechnung({ auftragId: auftragId as any, type: "Rechnung" });
+      await createRechnung({ auftragId: auftragId as any, type: "Rechnung", sessionToken });
       onRefresh();
     } finally {
       setLoading(null);
@@ -134,7 +135,7 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
     if (!confirm(`Rechnung ${originalNumber} stornieren? Eine Stornorechnung wird erstellt.`)) return;
     setLoading(`storno-${rechnungId}`);
     try {
-      await stornoRechnung({ invoiceId: rechnungId as any });
+      await stornoRechnung({ invoiceId: rechnungId as any, sessionToken });
       onRefresh();
     } catch (err: any) {
       alert(err.message || "Storno fehlgeschlagen");
@@ -147,7 +148,7 @@ export function AuftragDetail({ auftragId, userId, onClose, onRefresh }: Auftrag
     if (!angebot) return;
     setLoading("angebot-send");
     try {
-      await angebotMarkSent({ angebotId: angebot._id });
+      await angebotMarkSent({ angebotId: angebot._id, sessionToken });
       onRefresh();
     } finally {
       setLoading(null);

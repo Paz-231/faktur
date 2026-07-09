@@ -1,36 +1,43 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
+import { getAuthUserId } from "./authHelper";
 
 // ═══════════════════════════════════════════════════════════
 // Angebote API — optionales Dokument vor Auftrag
 // ═══════════════════════════════════════════════════════════
 
 export const list = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     return await ctx.db
       .query("angebots")
-      .withIndex("userId", (q) => q.eq("userId", args.userId))
+      .withIndex("userId", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
   },
 });
 
 export const get = query({
-  args: { angebotId: v.id("angebots") },
+  args: { angebotId: v.id("angebots"), sessionToken: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.angebotId);
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const angebot = await ctx.db.get(args.angebotId);
+    if (!angebot) return null;
+    if (angebot.userId !== userId) throw new Error("Zugriff verweigert");
+    return angebot;
   },
 });
 
 // Get next angebot number (AN- prefix)
 export const getNextNumber = mutation({
-  args: { userId: v.id("users"), year: v.number() },
+  args: { userId: v.id("users"), sessionToken: v.string(), year: v.number() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const existing = await ctx.db
       .query("numberSequences")
-      .withIndex("userId_year", (q) => q.eq("userId", args.userId).eq("year", args.year))
+      .withIndex("userId_year", (q) => q.eq("userId", userId).eq("year", args.year))
       .first();
 
     if (existing) {
@@ -39,7 +46,7 @@ export const getNextNumber = mutation({
       return `AN-${args.year}-${String(nextNum).padStart(6, "0")}`;
     } else {
       await ctx.db.insert("numberSequences", {
-        userId: args.userId,
+        userId,
         year: args.year,
         nextNumber: 2,
         createdAt: Date.now(),
@@ -53,6 +60,7 @@ export const getNextNumber = mutation({
 export const create = mutation({
   args: {
     userId: v.id("users"),
+    sessionToken: v.string(),
     number: v.string(),
     date: v.string(),
     validUntil: v.optional(v.string()),
@@ -79,16 +87,19 @@ export const create = mutation({
     footer: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const { sessionToken, ...rest } = args;
     const now = Date.now();
     const angebotId = await ctx.db.insert("angebots", {
-      ...args,
+      ...rest,
+      userId,
       status: "draft",
       createdAt: now,
       updatedAt: now,
     });
 
     await ctx.db.insert("auditLog", {
-      userId: args.userId,
+      userId,
       action: "angebot_created",
       details: `Angebot ${args.number} — €${args.grossAmount.toFixed(2)}`,
       timestamp: now,
@@ -100,10 +111,12 @@ export const create = mutation({
 
 // Mark as sent
 export const markSent = mutation({
-  args: { angebotId: v.id("angebots") },
+  args: { angebotId: v.id("angebots"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const angebot = await ctx.db.get(args.angebotId);
     if (!angebot) throw new Error("Angebot not found");
+    if (angebot.userId !== userId) throw new Error("Zugriff verweigert");
 
     await ctx.db.patch(args.angebotId, {
       status: "sent",
@@ -115,10 +128,12 @@ export const markSent = mutation({
 
 // Confirm angebot → generates Auftrag
 export const confirm = mutation({
-  args: { angebotId: v.id("angebots") },
+  args: { angebotId: v.id("angebots"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const angebot = await ctx.db.get(args.angebotId);
     if (!angebot) throw new Error("Angebot not found");
+    if (angebot.userId !== userId) throw new Error("Zugriff verweigert");
     if (angebot.status === "discarded") throw new Error("Angebot was discarded");
     if (angebot.auftragId) throw new Error("Angebot already has an auftrag");
 
@@ -192,10 +207,12 @@ export const confirm = mutation({
 
 // Discard angebot
 export const discard = mutation({
-  args: { angebotId: v.id("angebots") },
+  args: { angebotId: v.id("angebots"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const angebot = await ctx.db.get(args.angebotId);
     if (!angebot) throw new Error("Angebot not found");
+    if (angebot.userId !== userId) throw new Error("Zugriff verweigert");
     if (angebot.auftragId) throw new Error("Cannot discard — Auftrag already generated");
 
     await ctx.db.patch(args.angebotId, {

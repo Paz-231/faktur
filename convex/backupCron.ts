@@ -1,5 +1,5 @@
 import { httpAction, action } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════
 // Internal Backup Action — called by Convex's own cron system
@@ -16,7 +16,7 @@ export const runDailyBackup = action({
     timestamp: string;
   }> => {
     // Hole alle User
-    const users = await ctx.runQuery(api.backup.getAllUsers, {});
+    const users = await ctx.runQuery(internal.backup.getAllUsers, {});
 
     let backed = 0;
     let failed = 0;
@@ -36,16 +36,16 @@ export const runDailyBackup = action({
           profile,
           auditLog,
         ] = await Promise.all([
-          ctx.runQuery(api.backup.getUsersCustomers, { userId: user._id }),
-          ctx.runQuery(api.backup.getUsersAuftrags, { userId: user._id }),
-          ctx.runQuery(api.backup.getUserAngebots, { userId: user._id }),
-          ctx.runQuery(api.backup.getUserInvoices, { userId: user._id }),
-          ctx.runQuery(api.backup.getUsersIncoming, { userId: user._id }),
-          ctx.runQuery(api.backup.getUserDunningLetters, { userId: user._id }),
-          ctx.runQuery(api.backup.getUserNumberSequences, { userId: user._id }),
-          ctx.runQuery(api.backup.getUsersSettings, { userId: user._id }),
-          ctx.runQuery(api.backup.getUsersProfile, { userId: user._id }),
-          ctx.runQuery(api.backup.getUserAuditLog, { userId: user._id }),
+          ctx.runQuery(internal.backup.getUsersCustomers, { userId: user._id }),
+          ctx.runQuery(internal.backup.getUsersAuftrags, { userId: user._id }),
+          ctx.runQuery(internal.backup.getUserAngebots, { userId: user._id }),
+          ctx.runQuery(internal.backup.getUserInvoices, { userId: user._id }),
+          ctx.runQuery(internal.backup.getUsersIncoming, { userId: user._id }),
+          ctx.runQuery(internal.backup.getUserDunningLetters, { userId: user._id }),
+          ctx.runQuery(internal.backup.getUserNumberSequences, { userId: user._id }),
+          ctx.runQuery(internal.backup.getUsersSettings, { userId: user._id }),
+          ctx.runQuery(internal.backup.getUsersProfile, { userId: user._id }),
+          ctx.runQuery(internal.backup.getUserAuditLog, { userId: user._id }),
         ]);
 
         const backup = {
@@ -76,7 +76,7 @@ export const runDailyBackup = action({
         const storageResult = await uploadResp.json();
         const storageId = storageResult.storageId || storageResult._id;
 
-        await ctx.runMutation(api.backup.saveBackupRecord, {
+        await ctx.runMutation(internal.backup.saveBackupRecord, {
           userId: user._id,
           storageId,
           fileName,

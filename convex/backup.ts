@@ -1,6 +1,7 @@
-import { httpAction, query, mutation } from "./_generated/server";
+import { httpAction, query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
+import { getAuthUserId } from "./authHelper";
 
 // ═══════════════════════════════════════════════════════════
 // Backup & Export — vollständiger Daten-Export pro User
@@ -42,17 +43,16 @@ export const exportAllData = httpAction(async (ctx, request) => {
     profile,
     auditLog,
   ] = await Promise.all([
-    ctx.runQuery(api.customers.list, { userId }),
-    ctx.runQuery(api.auftrags.list, { userId }),
-    // For angebots and invoices we need to query them too
-    ctx.runQuery(api.backup.getUserAngebots, { userId }),
-    ctx.runQuery(api.backup.getUserInvoices, { userId }),
-    ctx.runQuery(api.incoming.list, { userId }),
-    ctx.runQuery(api.backup.getUserDunningLetters, { userId }),
-    ctx.runQuery(api.backup.getUserNumberSequences, { userId }),
-    ctx.runQuery(api.settings.get, { userId }),
-    ctx.runQuery(api.profile.get, { userId }),
-    ctx.runQuery(api.backup.getUserAuditLog, { userId }),
+    ctx.runQuery(internal.backup.getUsersCustomers, { userId }),
+    ctx.runQuery(internal.backup.getUsersAuftrags, { userId }),
+    ctx.runQuery(internal.backup.getUserAngebots, { userId }),
+    ctx.runQuery(internal.backup.getUserInvoices, { userId }),
+    ctx.runQuery(internal.backup.getUsersIncoming, { userId }),
+    ctx.runQuery(internal.backup.getUserDunningLetters, { userId }),
+    ctx.runQuery(internal.backup.getUserNumberSequences, { userId }),
+    ctx.runQuery(internal.backup.getUsersSettings, { userId }),
+    ctx.runQuery(internal.backup.getUsersProfile, { userId }),
+    ctx.runQuery(internal.backup.getUserAuditLog, { userId }),
   ]);
 
   const backup = {
@@ -95,18 +95,19 @@ export const exportAllData = httpAction(async (ctx, request) => {
 
 // Get backup summary (for settings page)
 export const getBackupSummary = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const [customers, auftrags, incoming] = await Promise.all([
-      ctx.db.query("customers").withIndex("userId", (q) => q.eq("userId", args.userId)).collect(),
-      ctx.db.query("auftrags").withIndex("userId", (q) => q.eq("userId", args.userId)).collect(),
-      ctx.db.query("incomingInvoices").withIndex("userId", (q) => q.eq("userId", args.userId)).collect(),
+      ctx.db.query("customers").withIndex("userId", (q) => q.eq("userId", userId)).collect(),
+      ctx.db.query("auftrags").withIndex("userId", (q) => q.eq("userId", userId)).collect(),
+      ctx.db.query("incomingInvoices").withIndex("userId", (q) => q.eq("userId", userId)).collect(),
     ]);
 
-    const angebots = await ctx.db.query("angebots").withIndex("userId", (q) => q.eq("userId", args.userId)).collect();
-    const invoices = await ctx.db.query("outgoingInvoices").withIndex("userId", (q) => q.eq("userId", args.userId)).collect();
-    const dunning = await ctx.db.query("dunningLetters").withIndex("userId", (q) => q.eq("userId", args.userId)).collect();
-    const audit = await ctx.db.query("auditLog").withIndex("userId", (q) => q.eq("userId", args.userId)).collect();
+    const angebots = await ctx.db.query("angebots").withIndex("userId", (q) => q.eq("userId", userId)).collect();
+    const invoices = await ctx.db.query("outgoingInvoices").withIndex("userId", (q) => q.eq("userId", userId)).collect();
+    const dunning = await ctx.db.query("dunningLetters").withIndex("userId", (q) => q.eq("userId", userId)).collect();
+    const audit = await ctx.db.query("auditLog").withIndex("userId", (q) => q.eq("userId", userId)).collect();
 
     return {
       customers: customers.length,
@@ -125,79 +126,79 @@ export const getBackupSummary = query({
 
 // ─── Internal queries for backup ────────────────────────────
 
-export const getUserAngebots = query({
+export const getUserAngebots = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db.query("angebots").withIndex("userId", (q) => q.eq("userId", args.userId)).collect();
   },
 });
 
-export const getUserInvoices = query({
+export const getUserInvoices = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db.query("outgoingInvoices").withIndex("userId", (q) => q.eq("userId", args.userId)).collect();
   },
 });
 
-export const getUserDunningLetters = query({
+export const getUserDunningLetters = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db.query("dunningLetters").withIndex("userId", (q) => q.eq("userId", args.userId)).collect();
   },
 });
 
-export const getUserNumberSequences = query({
+export const getUserNumberSequences = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db.query("numberSequences").withIndex("userId_year", (q) => q.eq("userId", args.userId)).collect();
   },
 });
 
-export const getUserAuditLog = query({
+export const getUserAuditLog = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db.query("auditLog").withIndex("userId", (q) => q.eq("userId", args.userId)).collect();
   },
 });
 
-// ─── Queries for automated backup (no session needed, admin-only) ─
+// ─── Internal Queries for automated backup (NOT public) ─
 
-export const getAllUsers = query({
+export const getAllUsers = internalQuery({
   args: {},
   handler: async (ctx) => {
     return await ctx.db.query("users").collect();
   },
 });
 
-export const getUsersCustomers = query({
+export const getUsersCustomers = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db.query("customers").withIndex("userId", (q) => q.eq("userId", args.userId)).collect();
   },
 });
 
-export const getUsersAuftrags = query({
+export const getUsersAuftrags = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db.query("auftrags").withIndex("userId", (q) => q.eq("userId", args.userId)).collect();
   },
 });
 
-export const getUsersIncoming = query({
+export const getUsersIncoming = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db.query("incomingInvoices").withIndex("userId", (q) => q.eq("userId", args.userId)).collect();
   },
 });
 
-export const getUsersSettings = query({
+export const getUsersSettings = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db.query("settings").withIndex("userId", (q) => q.eq("userId", args.userId)).first();
   },
 });
 
-export const getUsersProfile = query({
+export const getUsersProfile = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db.query("businessProfiles").withIndex("userId", (q) => q.eq("userId", args.userId)).first();
@@ -206,7 +207,7 @@ export const getUsersProfile = query({
 
 // ─── Mutation: save backup record ───────────────────────────
 
-export const saveBackupRecord = mutation({
+export const saveBackupRecord = internalMutation({
   args: {
     userId: v.id("users"),
     storageId: v.string(),
@@ -231,11 +232,12 @@ export const saveBackupRecord = mutation({
 // ─── List backups for user (Settings page) ──────────────────
 
 export const listBackups = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     return await ctx.db
       .query("backups")
-      .withIndex("userId", (q) => q.eq("userId", args.userId))
+      .withIndex("userId", (q) => q.eq("userId", userId))
       .order("desc")
       .take(30); // last 30 backups
   },

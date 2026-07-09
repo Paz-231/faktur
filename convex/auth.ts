@@ -1,4 +1,4 @@
-import { query, mutation, action, internalAction, internalQuery } from "./_generated/server";
+import { query, mutation, action, internalAction, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -7,12 +7,9 @@ import { internal } from "./_generated/api";
 // ═══════════════════════════════════════════════════════════
 
 function generateToken(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let token = "";
-  for (let i = 0; i < 64; i++) {
-    token += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return token + Date.now().toString(36);
+  const array = new Uint8Array(48);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, "0")).join("") + Date.now().toString(36);
 }
 
 // Token expiry: 15 minutes
@@ -277,8 +274,8 @@ export const updateProfile = mutation({
 
 // ─── Stripe Support Queries/Mutations ──────────────────────
 
-// Find user by email (for Stripe webhook)
-export const getUserByEmail = query({
+// Internal: Find user by email (for Stripe webhook — NOT public)
+export const getUserByEmail = internalQuery({
   args: { email: v.string() },
   handler: async (ctx, args) => {
     const email = args.email.toLowerCase().trim();
@@ -297,8 +294,8 @@ export const getUserById = internalQuery({
   },
 });
 
-// Find user by Stripe customer ID (for webhook updates)
-export const getUserByStripeCustomer = query({
+// Internal: Find user by Stripe customer ID (for webhook — NOT public)
+export const getUserByStripeCustomer = internalQuery({
   args: { customerId: v.string() },
   handler: async (ctx, args) => {
     const allUsers = await ctx.db.query("users").collect();
@@ -306,8 +303,8 @@ export const getUserByStripeCustomer = query({
   },
 });
 
-// Update subscription (called from webhook)
-export const updateSubscription = mutation({
+// Internal: Update subscription (called from webhook — NOT public)
+export const updateSubscription = internalMutation({
   args: {
     userId: v.id("users"),
     stripeCustomerId: v.string(),

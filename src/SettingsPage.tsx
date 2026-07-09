@@ -4,7 +4,7 @@ import { api } from "../convex/_generated/api";
 import { convexSiteUrl } from "./lib";
 
 interface SettingsPageProps {
-  auth: { userId: string; email: string; name: string; plan: string };
+  auth: { userId: string; email: string; name: string; plan: string; sessionToken: string };
 }
 
 const TAX_MODES = [
@@ -16,8 +16,8 @@ const TAX_MODES = [
 ];
 
 export function SettingsPage({ auth }: SettingsPageProps) {
-  const settings = useQuery(api.settings.get, { userId: auth.userId as any });
-  const profile = useQuery(api.profile.get, { userId: auth.userId as any });
+  const settings = useQuery(api.settings.get, { userId: auth.userId as any, sessionToken: auth.sessionToken });
+  const profile = useQuery(api.profile.get, { userId: auth.userId as any, sessionToken: auth.sessionToken });
   const upsertSettings = useMutation(api.settings.upsert);
   const createProfile = useMutation(api.profile.create);
   const updateBusinessProfile = useMutation(api.profile.update);
@@ -91,7 +91,7 @@ export function SettingsPage({ auth }: SettingsPageProps) {
   const handleSaveSettings = async () => {
     setSavingSettings(true);
     try {
-      await upsertSettings({
+      await upsertSettings({ sessionToken: auth.sessionToken,
         userId: auth.userId as any,
         rechnungMode,
         defaultTaxMode,
@@ -107,7 +107,7 @@ export function SettingsPage({ auth }: SettingsPageProps) {
     setSavingProfile(true);
     try {
       if (profile) {
-        await updateBusinessProfile({
+        await updateBusinessProfile({ sessionToken: auth.sessionToken,
           profileId: profile._id,
           name: profileForm.name || undefined,
           street: profileForm.street || undefined,
@@ -123,7 +123,7 @@ export function SettingsPage({ auth }: SettingsPageProps) {
         });
       } else {
         // Create new profile
-        await createProfile({
+        await createProfile({ sessionToken: auth.sessionToken,
           userId: auth.userId as any,
           name: profileForm.name,
           street: profileForm.street,
@@ -151,7 +151,7 @@ export function SettingsPage({ auth }: SettingsPageProps) {
     setSavingTax(true);
     try {
       if (profile) {
-        await changeTaxStatus({
+        await changeTaxStatus({ sessionToken: auth.sessionToken,
           profileId: profile._id,
           status: newTaxStatus,
           rate: newTaxRate,

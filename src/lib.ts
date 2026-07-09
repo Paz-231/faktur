@@ -3,7 +3,7 @@
 // Convex HTTP actions are served on the .convex.site domain,
 // not on the .convex.cloud client API domain.
 export function convexSiteUrl(): string {
-  const url = import.meta.env.VITE_CONVEX_URL || "https://quick-ox-60.eu-west-1.convex.cloud";
+  const url = import.meta.env.VITE_CONVEX_URL || "https://joyous-deer-167.eu-west-1.convex.cloud";
   return url.replace(".convex.cloud", ".convex.site");
 }
 

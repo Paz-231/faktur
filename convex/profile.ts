@@ -1,16 +1,18 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "./authHelper";
 
 // ═══════════════════════════════════════════════════════════
 // Business Profile API — Unternehmensprofil + Steuerstatus
 // ═══════════════════════════════════════════════════════════
 
 export const get = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     return await ctx.db
       .query("businessProfiles")
-      .withIndex("userId", (q) => q.eq("userId", args.userId))
+      .withIndex("userId", (q) => q.eq("userId", userId))
       .first();
   },
 });
@@ -18,6 +20,7 @@ export const get = query({
 export const create = mutation({
   args: {
     userId: v.id("users"),
+    sessionToken: v.string(),
     name: v.string(),
     street: v.string(),
     postalCityCountry: v.string(),
@@ -33,9 +36,12 @@ export const create = mutation({
     currentTaxRate: v.number(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const { sessionToken, ...rest } = args;
     const now = Date.now();
     const profileId = await ctx.db.insert("businessProfiles", {
-      ...args,
+      ...rest,
+      userId,
       createdAt: now,
       updatedAt: now,
     });
@@ -63,7 +69,7 @@ export const create = mutation({
     }
 
     await ctx.db.insert("auditLog", {
-      userId: args.userId,
+      userId,
       action: "profile_created",
       details: `${args.name} — ${args.currentTaxStatus} (${args.currentTaxRate}%)`,
       timestamp: now,
@@ -77,6 +83,7 @@ export const create = mutation({
 export const update = mutation({
   args: {
     profileId: v.id("businessProfiles"),
+    sessionToken: v.string(),
     name: v.optional(v.string()),
     street: v.optional(v.string()),
     postalCityCountry: v.optional(v.string()),
@@ -90,10 +97,12 @@ export const update = mutation({
     currentUid: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const profile = await ctx.db.get(args.profileId);
     if (!profile) throw new Error("Profile not found");
+    if (profile.userId !== userId) throw new Error("Zugriff verweigert");
 
-    const { profileId, ...updates } = args;
+    const { profileId, sessionToken, ...updates } = args;
     const clean: Record<string, unknown> = {};
     for (const [k, val] of Object.entries(updates)) {
       if (val !== undefined) clean[k] = val;
@@ -137,14 +146,17 @@ export const update = mutation({
 export const changeTaxStatus = mutation({
   args: {
     profileId: v.id("businessProfiles"),
+    sessionToken: v.string(),
     status: v.string(),
     rate: v.number(),
     validFrom: v.string(),
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const profile = await ctx.db.get(args.profileId);
     if (!profile) throw new Error("Profile not found");
+    if (profile.userId !== userId) throw new Error("Zugriff verweigert");
 
     const now = Date.now();
 
@@ -195,8 +207,13 @@ export const changeTaxStatus = mutation({
 
 // Get tax status for a specific date
 export const getTaxStatusForDate = query({
-  args: { profileId: v.id("businessProfiles"), date: v.string() },
+  args: { profileId: v.id("businessProfiles"), sessionToken: v.string(), date: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const profile = await ctx.db.get(args.profileId);
+    if (!profile) return null;
+    if (profile.userId !== userId) throw new Error("Zugriff verweigert");
+
     const history = await ctx.db
       .query("taxStatusHistory")
       .withIndex("profileId", (q) => q.eq("profileId", args.profileId))

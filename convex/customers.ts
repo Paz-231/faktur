@@ -1,16 +1,18 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "./authHelper";
 
 // ═══════════════════════════════════════════════════════════
 // Customers API — Kundenstamm
 // ═══════════════════════════════════════════════════════════
 
 export const list = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     return await ctx.db
       .query("customers")
-      .withIndex("userId", (q) => q.eq("userId", args.userId))
+      .withIndex("userId", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
   },
@@ -19,6 +21,7 @@ export const list = query({
 export const create = mutation({
   args: {
     userId: v.id("users"),
+    sessionToken: v.string(),
     name: v.string(),
     street: v.optional(v.string()),
     postalCityCountry: v.optional(v.string()),
@@ -27,19 +30,23 @@ export const create = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const { sessionToken, ...rest } = args;
     return await ctx.db.insert("customers", {
-      ...args,
+      ...rest,
+      userId,
       createdAt: Date.now(),
     });
   },
 });
 
 export const findByName = query({
-  args: { userId: v.id("users"), name: v.string() },
+  args: { userId: v.id("users"), sessionToken: v.string(), name: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const all = await ctx.db
       .query("customers")
-      .withIndex("userId", (q) => q.eq("userId", args.userId))
+      .withIndex("userId", (q) => q.eq("userId", userId))
       .collect();
     const lower = args.name.toLowerCase();
     return all.filter((c) => c.name.toLowerCase().includes(lower));
@@ -48,9 +55,13 @@ export const findByName = query({
 
 // Get single customer by ID
 export const getById = query({
-  args: { customerId: v.id("customers") },
+  args: { customerId: v.id("customers"), sessionToken: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.customerId);
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const customer = await ctx.db.get(args.customerId);
+    if (!customer) return null;
+    if (customer.userId !== userId) throw new Error("Zugriff verweigert");
+    return customer;
   },
 });
 
@@ -58,6 +69,7 @@ export const getById = query({
 export const update = mutation({
   args: {
     customerId: v.id("customers"),
+    sessionToken: v.string(),
     name: v.optional(v.string()),
     street: v.optional(v.string()),
     postalCityCountry: v.optional(v.string()),
@@ -66,11 +78,16 @@ export const update = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const { customerId, ...updates } = args;
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const existing = await ctx.db.get(args.customerId);
+    if (!existing) throw new Error("Kunde nicht gefunden");
+    if (existing.userId !== userId) throw new Error("Zugriff verweigert");
+
+    const { customerId, sessionToken, ...updates } = args;
     // Remove undefined values
     const clean: any = {};
-    for (const [k, v] of Object.entries(updates)) {
-      if (v !== undefined) clean[k] = v;
+    for (const [k, val] of Object.entries(updates)) {
+      if (val !== undefined) clean[k] = val;
     }
     await ctx.db.patch(customerId, clean);
     return { success: true };
@@ -79,12 +96,13 @@ export const update = mutation({
 
 // Get all documents for a customer — Angebote, Aufträge, Rechnungen, Stornos
 export const getDocuments = query({
-  args: { customerId: v.id("customers") },
+  args: { customerId: v.id("customers"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const customer = await ctx.db.get(args.customerId);
     if (!customer) return null;
+    if (customer.userId !== userId) throw new Error("Zugriff verweigert");
 
-    const userId = customer.userId;
     const name = customer.name;
 
     // Find all aufträge for this customer (by recipientName match since customerId is optional)

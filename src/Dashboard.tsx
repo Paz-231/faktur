@@ -11,7 +11,7 @@ import { SettingsPage } from "./SettingsPage";
 import { money, parseAppDate } from "./lib";
 
 interface DashboardProps {
-  auth: { userId: string; email: string; name: string; plan: string };
+  auth: { userId: string; email: string; name: string; plan: string; sessionToken: string };
   onLogout: () => void;
 }
 
@@ -146,10 +146,10 @@ export function Dashboard({ auth, onLogout }: DashboardProps) {
           <DashboardPage auth={auth} onUpgrade={() => setShowUpgrade(true)} onNavigate={setPage} />
         )}
         {page === "analytics" && <AnalyticsDashboard auth={auth} onUpgrade={() => setShowUpgrade(true)} />}
-        {page === "invoices" && <InvoicesPage userId={auth.userId as any} />}
-        {page === "incoming" && <IncomingPage userId={auth.userId as any} />}
-        {page === "customers" && <CustomersPage userId={auth.userId as any} />}
-        {page === "reports" && <ReportsPage userId={auth.userId as any} />}
+        {page === "invoices" && <InvoicesPage userId={auth.userId as any} sessionToken={auth.sessionToken} />}
+        {page === "incoming" && <IncomingPage userId={auth.userId as any} sessionToken={auth.sessionToken} />}
+        {page === "customers" && <CustomersPage userId={auth.userId as any} sessionToken={auth.sessionToken} />}
+        {page === "reports" && <ReportsPage userId={auth.userId as any} sessionToken={auth.sessionToken} />}
         {page === "settings" && <SettingsPage auth={auth} />}
       </main>
 
@@ -184,11 +184,12 @@ function DashboardPage({
 }) {
   const [showCreate, setShowCreate] = useState(false);
   const userId = auth.userId as any;
+  const sessionToken = auth.sessionToken;
 
-  const invoices = useQuery(api.invoices.list, { userId }) ?? [];
-  const incoming = useQuery(api.incoming.list, { userId }) ?? [];
-  const auftrags = useQuery(api.auftrags.list, { userId }) ?? [];
-  const profile = useQuery(api.profile.get, { userId });
+  const invoices = useQuery(api.invoices.list, { userId, sessionToken }) ?? [];
+  const incoming = useQuery(api.incoming.list, { userId, sessionToken }) ?? [];
+  const auftrags = useQuery(api.auftrags.list, { userId, sessionToken }) ?? [];
+  const profile = useQuery(api.profile.get, { userId, sessionToken });
 
   const now = new Date();
   const month = now.getMonth();
@@ -347,6 +348,7 @@ function DashboardPage({
       {showCreate && (
         <CreateInvoiceModal
           userId={auth.userId}
+          sessionToken={auth.sessionToken}
           onClose={() => setShowCreate(false)}
         />
       )}
@@ -357,11 +359,11 @@ function DashboardPage({
 // ═══════════════════════════════════════════════════════════
 // Aufträge Page — Source of Truth, mit Detail-Ansicht
 // ═══════════════════════════════════════════════════════════
-function InvoicesPage({ userId }: { userId: any }) {
+function InvoicesPage({ userId, sessionToken }: { userId: any; sessionToken: string }) {
   const [showCreate, setShowCreate] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  const auftrags = useQuery(api.auftrags.list, { userId }) ?? [];
+  const auftrags = useQuery(api.auftrags.list, { userId, sessionToken }) ?? [];
 
   const statusBadge = (status: string) => {
     const map: Record<string, { text: string; cls: string }> = {
@@ -430,6 +432,7 @@ function InvoicesPage({ userId }: { userId: any }) {
       {showCreate && (
         <CreateInvoiceModal
           userId={userId}
+          sessionToken={sessionToken}
           onClose={() => setShowCreate(false)}
         />
       )}
@@ -438,6 +441,7 @@ function InvoicesPage({ userId }: { userId: any }) {
         <AuftragDetail
           auftragId={detailId}
           userId={userId}
+          sessionToken={sessionToken}
           onClose={() => setDetailId(null)}
           onRefresh={() => {}}
         />
@@ -449,11 +453,11 @@ function InvoicesPage({ userId }: { userId: any }) {
 // ═══════════════════════════════════════════════════════════
 // Incoming Page (Eingang) — Upload + manuelle Erfassung + Live Data
 // ═══════════════════════════════════════════════════════════
-function IncomingPage({ userId }: { userId: any }) {
+function IncomingPage({ userId, sessionToken }: { userId: any; sessionToken: string }) {
   const [showUpload, setShowUpload] = useState(false);
   const [showManual, setShowManual] = useState(false);
 
-  const invoices = useQuery(api.incoming.list, { userId }) ?? [];
+  const invoices = useQuery(api.incoming.list, { userId, sessionToken }) ?? [];
   const markPaid = useMutation(api.incoming.markPaid);
 
   const statusBadge = (status: string) => {
@@ -471,6 +475,7 @@ function IncomingPage({ userId }: { userId: any }) {
     e.stopPropagation();
     await markPaid({
       invoiceId: invoiceId as any,
+      sessionToken,
       paidDate: new Date().toLocaleDateString("de-AT"),
     });
   };
@@ -489,7 +494,7 @@ function IncomingPage({ userId }: { userId: any }) {
 
       {showUpload && (
         <div style={{ marginBottom: "1.5rem" }}>
-          <FileUpload userId={userId} onUploaded={() => setShowUpload(false)} />
+          <FileUpload userId={userId} sessionToken={sessionToken} onUploaded={() => setShowUpload(false)} />
         </div>
       )}
 
@@ -548,14 +553,14 @@ function IncomingPage({ userId }: { userId: any }) {
       </div>
 
       {showManual && (
-        <ManualIncomingModal userId={userId} onClose={() => setShowManual(false)} />
+        <ManualIncomingModal userId={userId} sessionToken={sessionToken} onClose={() => setShowManual(false)} />
       )}
     </div>
   );
 }
 
 // ─── Manuelle Erfassung einer Eingangsrechnung ───────────────
-function ManualIncomingModal({ userId, onClose }: { userId: any; onClose: () => void }) {
+function ManualIncomingModal({ userId, sessionToken, onClose }: { userId: any; sessionToken: string; onClose: () => void }) {
   const create = useMutation(api.incoming.create);
   const [form, setForm] = useState({
     number: "",
@@ -586,6 +591,7 @@ function ManualIncomingModal({ userId, onClose }: { userId: any; onClose: () => 
     try {
       await create({
         userId,
+        sessionToken,
         number: form.number,
         date: form.date,
         issuerName: form.issuerName,
@@ -686,18 +692,19 @@ function ManualIncomingModal({ userId, onClose }: { userId: any; onClose: () => 
 // ═══════════════════════════════════════════════════════════
 // Customers Page — Liste + Detail + Bearbeiten
 // ═══════════════════════════════════════════════════════════
-function CustomersPage({ userId }: { userId: any }) {
+function CustomersPage({ userId, sessionToken }: { userId: any; sessionToken: string }) {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [newCustomer, setNewCustomer] = useState({ name: "", street: "", city: "", uid: "", email: "" });
 
-  const customers = useQuery(api.customers.list, { userId }) ?? [];
+  const customers = useQuery(api.customers.list, { userId, sessionToken }) ?? [];
   const createCustomer = useMutation(api.customers.create);
 
   const handleAdd = async () => {
     if (!newCustomer.name) return;
     await createCustomer({
       userId: userId as any,
+      sessionToken,
       name: newCustomer.name,
       street: newCustomer.street || undefined,
       postalCityCountry: newCustomer.city || undefined,
@@ -791,6 +798,7 @@ function CustomersPage({ userId }: { userId: any }) {
         <CustomerDetail
           customerId={detailId}
           userId={userId}
+          sessionToken={sessionToken}
           onClose={() => setDetailId(null)}
           onRefresh={() => {}}
         />
@@ -802,9 +810,9 @@ function CustomersPage({ userId }: { userId: any }) {
 // ═══════════════════════════════════════════════════════════
 // Reports Page — echte Zahlen + CSV-Exporte
 // ═══════════════════════════════════════════════════════════
-function ReportsPage({ userId }: { userId: any }) {
-  const invoices = useQuery(api.invoices.list, { userId }) ?? [];
-  const incoming = useQuery(api.incoming.list, { userId }) ?? [];
+function ReportsPage({ userId, sessionToken }: { userId: any; sessionToken: string }) {
+  const invoices = useQuery(api.invoices.list, { userId, sessionToken }) ?? [];
+  const incoming = useQuery(api.incoming.list, { userId, sessionToken }) ?? [];
 
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth());

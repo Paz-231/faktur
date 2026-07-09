@@ -1,5 +1,5 @@
 import { httpAction } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════
 // Stripe Webhook Handler — Convex HTTP Action
@@ -103,7 +103,7 @@ export const stripeWebhook = httpAction(async (ctx, request) => {
       const metadata = session.metadata || {};
 
       // Find user by email
-      const user = await ctx.runQuery(api.auth.getUserByEmail, { email: customerEmail });
+      const user = await ctx.runQuery(internal.auth.getUserByEmail, { email: customerEmail });
       if (!user) {
         console.error("User not found for email:", customerEmail);
         break;
@@ -111,7 +111,7 @@ export const stripeWebhook = httpAction(async (ctx, request) => {
 
       // Determine plan from metadata
       const plan = metadata.plan || "starter";
-      await ctx.runMutation(api.auth.updateSubscription, {
+      await ctx.runMutation(internal.auth.updateSubscription, {
         userId: user._id,
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId,
@@ -133,9 +133,9 @@ export const stripeWebhook = httpAction(async (ctx, request) => {
       const plan = priceIdToPlan(priceId);
 
       // Find user by Stripe customer ID
-      const user = await ctx.runQuery(api.auth.getUserByStripeCustomer, { customerId });
+      const user = await ctx.runQuery(internal.auth.getUserByStripeCustomer, { customerId });
       if (user) {
-        await ctx.runMutation(api.auth.updateSubscription, {
+        await ctx.runMutation(internal.auth.updateSubscription, {
           userId: user._id,
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscription.id,
@@ -150,9 +150,9 @@ export const stripeWebhook = httpAction(async (ctx, request) => {
       const subscription = event.data.object;
       const customerId = subscription.customer as string;
 
-      const user = await ctx.runQuery(api.auth.getUserByStripeCustomer, { customerId });
+      const user = await ctx.runQuery(internal.auth.getUserByStripeCustomer, { customerId });
       if (user) {
-        await ctx.runMutation(api.auth.updateSubscription, {
+        await ctx.runMutation(internal.auth.updateSubscription, {
           userId: user._id,
           stripeCustomerId: customerId,
           stripeSubscriptionId: subscription.id,

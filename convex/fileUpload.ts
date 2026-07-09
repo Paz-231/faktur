@@ -1,6 +1,7 @@
 import { query, mutation, action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
+import { getAuthUserId } from "./authHelper";
 
 // ═══════════════════════════════════════════════════════════
 // File Upload API — Convex File Storage
@@ -16,16 +17,18 @@ import { api } from "./_generated/api";
 
 // Step 1: Generate upload URL
 export const generateUploadUrl = mutation({
-  args: {},
-  handler: async (ctx) => {
+  args: { sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    await getAuthUserId(ctx, args.sessionToken);
     return await ctx.storage.generateUploadUrl();
   },
 });
 
 // Step 2: Get file URL (for display/download)
 export const getFileUrl = query({
-  args: { storageId: v.id("_storage") },
+  args: { storageId: v.id("_storage"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    await getAuthUserId(ctx, args.sessionToken);
     return await ctx.storage.getUrl(args.storageId);
   },
 });
@@ -35,15 +38,17 @@ export const getFileUrl = query({
 export const createIncomingFromFile = mutation({
   args: {
     userId: v.id("users"),
+    sessionToken: v.string(),
     fileStorageId: v.id("_storage"),
     fileName: v.string(),
     fileType: v.string(),
     fileSize: v.number(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const now = Date.now();
     const id = await ctx.db.insert("incomingInvoices", {
-      userId: args.userId,
+      userId,
       number: `PENDING-${now}`,
       date: new Date().toLocaleDateString("de-AT"),
       issuerName: "Aus Datei zu scannen",
@@ -61,11 +66,11 @@ export const createIncomingFromFile = mutation({
     await ctx.scheduler.runAfter(0, api.fileUpload.scanInvoiceFile, {
       incomingId: id,
       fileStorageId: args.fileStorageId,
-      userId: args.userId,
+      userId,
     });
 
     await ctx.db.insert("auditLog", {
-      userId: args.userId,
+      userId,
       action: "file_uploaded",
       details: `${args.fileName} (${args.fileType}, ${args.fileSize} bytes)`,
       timestamp: now,
@@ -210,6 +215,11 @@ export const markScanFailed = mutation({
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
+    // Internal mutation — called by scanInvoiceFile action with verified userId
+    const inv = await ctx.db.get(args.incomingId);
+    if (!inv) throw new Error("Invoice not found");
+    if (inv.userId !== args.userId) throw new Error("Zugriff verweigert");
+
     await ctx.db.patch(args.incomingId, {
       status: "scan_failed",
       issuerName: "Scan fehlgeschlagen — manuell erfassen",
@@ -247,6 +257,11 @@ export const applyScanResult = mutation({
     }),
   },
   handler: async (ctx, args) => {
+    // Internal mutation — called by scanInvoiceFile action with verified userId
+    const inv = await ctx.db.get(args.incomingId);
+    if (!inv) throw new Error("Invoice not found");
+    if (inv.userId !== args.userId) throw new Error("Zugriff verweigert");
+
     const d = args.data;
     await ctx.db.patch(args.incomingId, {
       number: d.invoice_number || "UNKNOWN",

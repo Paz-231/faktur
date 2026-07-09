@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "./authHelper";
 
 // ═══════════════════════════════════════════════════════════
 // Invoices API — Ausgangsrechnungen
@@ -7,11 +8,12 @@ import { v } from "convex/values";
 
 // List all outgoing invoices for a user
 export const list = query({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     return await ctx.db
       .query("outgoingInvoices")
-      .withIndex("userId", (q) => q.eq("userId", args.userId))
+      .withIndex("userId", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
   },
@@ -19,9 +21,13 @@ export const list = query({
 
 // Get single invoice
 export const get = query({
-  args: { invoiceId: v.id("outgoingInvoices") },
+  args: { invoiceId: v.id("outgoingInvoices"), sessionToken: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.invoiceId);
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const invoice = await ctx.db.get(args.invoiceId);
+    if (!invoice) return null;
+    if (invoice.userId !== userId) throw new Error("Zugriff verweigert");
+    return invoice;
   },
 });
 
@@ -29,6 +35,7 @@ export const get = query({
 export const create = mutation({
   args: {
     userId: v.id("users"),
+    sessionToken: v.string(),
     auftragId: v.id("auftrags"),
     number: v.string(),
     type: v.string(),
@@ -59,9 +66,12 @@ export const create = mutation({
     footer: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const { sessionToken, ...rest } = args;
     const now = Date.now();
     const invoiceId = await ctx.db.insert("outgoingInvoices", {
-      ...args,
+      ...rest,
+      userId,
       status: "final",
       lockedAt: now,
       createdAt: now,
@@ -70,7 +80,7 @@ export const create = mutation({
 
     // Audit log
     await ctx.db.insert("auditLog", {
-      userId: args.userId,
+      userId,
       action: "invoice_created",
       details: `${args.type} ${args.number} — €${args.grossAmount.toFixed(2)}`,
       timestamp: now,
@@ -84,11 +94,14 @@ export const create = mutation({
 export const markPaid = mutation({
   args: {
     invoiceId: v.id("outgoingInvoices"),
+    sessionToken: v.string(),
     paidDate: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const invoice = await ctx.db.get(args.invoiceId);
     if (!invoice) throw new Error("Rechnung nicht gefunden");
+    if (invoice.userId !== userId) throw new Error("Zugriff verweigert");
 
     // Guard: only final invoices can be marked as paid
     if (invoice.status !== "final") {
@@ -114,10 +127,13 @@ export const markPaid = mutation({
 export const storno = mutation({
   args: {
     invoiceId: v.id("outgoingInvoices"),
+    sessionToken: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const invoice = await ctx.db.get(args.invoiceId);
     if (!invoice) throw new Error("Rechnung nicht gefunden");
+    if (invoice.userId !== userId) throw new Error("Zugriff verweigert");
 
     // Guard: only final or paid invoices can be storniert
     if (invoice.status !== "final" && invoice.status !== "paid") {
@@ -181,11 +197,12 @@ export const storno = mutation({
 
 // Get next invoice number for a year
 export const getNextNumber = mutation({
-  args: { userId: v.id("users"), year: v.number() },
+  args: { userId: v.id("users"), sessionToken: v.string(), year: v.number() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
     const existing = await ctx.db
       .query("numberSequences")
-      .withIndex("userId_year", (q) => q.eq("userId", args.userId).eq("year", args.year))
+      .withIndex("userId_year", (q) => q.eq("userId", userId).eq("year", args.year))
       .first();
 
     if (existing) {
@@ -194,7 +211,7 @@ export const getNextNumber = mutation({
       return `RE-${args.year}-${String(nextNum).padStart(6, "0")}`;
     } else {
       await ctx.db.insert("numberSequences", {
-        userId: args.userId,
+        userId,
         year: args.year,
         nextNumber: 2,
         createdAt: Date.now(),
