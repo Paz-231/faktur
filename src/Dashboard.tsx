@@ -309,6 +309,27 @@ function DashboardPage({
               </tbody>
             </table>
           </div>
+          {/* Mobile: Card List */}
+          <div className="data-cards">
+            {recentAuftrags.map((a: any) => (
+              <div key={a._id} className="data-card" onClick={() => onNavigate("invoices")}>
+                <div className="data-card-header">
+                  <div>
+                    <div className="data-card-title">{a.number}</div>
+                    <div className="data-card-meta">
+                      <span>{a.date}</span>
+                      <span>·</span>
+                      <span>{a.recipientName}</span>
+                    </div>
+                  </div>
+                  <div className="data-card-amount">{money(a.grossAmount)}</div>
+                </div>
+                <div className="data-card-meta">
+                  <span>{a.status === "confirmed" ? "Bestätigt" : a.status === "discarded" ? "Verworfen" : "Entwurf"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -386,6 +407,7 @@ function InvoicesPage({ userId, sessionToken }: { userId: any; sessionToken: str
         </div>
       </div>
 
+      {/* Desktop: Table */}
       <div className="table-wrap">
         <table>
           <thead>
@@ -427,6 +449,40 @@ function InvoicesPage({ userId, sessionToken }: { userId: any; sessionToken: str
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile: Card List */}
+      <div className="data-cards">
+        {auftrags.length === 0 ? (
+          <div className="empty-state" style={{ padding: "2rem 1rem", textAlign: "center" }}>
+            <h3>Keine Aufträge</h3>
+            <p>Erstelle deinen ersten Auftrag.</p>
+            <button className="btn btn-primary btn-sm" style={{ marginTop: "1rem" }} onClick={() => setShowCreate(true)}>
+              + Neuer Auftrag
+            </button>
+          </div>
+        ) : (
+          auftrags.map((auftrag: any) => (
+            <div key={auftrag._id} className="data-card" onClick={() => setDetailId(auftrag._id)}>
+              <div className="data-card-header">
+                <div>
+                  <div className="data-card-title">{auftrag.number}</div>
+                  <div className="data-card-meta">
+                    <span>{auftrag.date}</span>
+                    <span>·</span>
+                    <span>{auftrag.recipientName}</span>
+                  </div>
+                </div>
+                <div className="data-card-amount">{money(auftrag.grossAmount)}</div>
+              </div>
+              <div className="data-card-meta">
+                <span>{statusBadge(auftrag.status)}</span>
+                {auftrag.angebotId && <span>· Angebot ja</span>}
+                {(auftrag.rechnungIds?.length || 0) > 0 && <span>· {auftrag.rechnungIds.length} Rechnung(en)</span>}
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {showCreate && (
@@ -562,6 +618,52 @@ function IncomingPage({ userId, sessionToken }: { userId: any; sessionToken: str
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile: Card List */}
+      <div className="data-cards">
+        {invoices.length === 0 ? (
+          <div className="empty-state" style={{ padding: "2rem 1rem", textAlign: "center" }}>
+            <h3>Keine Eingangsrechnungen</h3>
+            <p>Foto hochladen oder manuell erfassen.</p>
+            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", marginTop: "1rem" }}>
+              <button className="btn btn-sm" onClick={() => setShowUpload(true)}>Foto/PDF</button>
+              <button className="btn btn-primary btn-sm" onClick={() => setShowManual(true)}>+ Manuell</button>
+            </div>
+          </div>
+        ) : (
+          invoices.map((inv: any) => (
+            <div key={inv._id} className="data-card">
+              <div className="data-card-header">
+                <div>
+                  <div className="data-card-title">{inv.issuerName || "Unbekannt"}</div>
+                  <div className="data-card-meta">
+                    <span>{inv.number}</span>
+                    <span>·</span>
+                    <span>{inv.date}</span>
+                    {inv.category && <><span>·</span><span>{inv.category}</span></>}
+                  </div>
+                </div>
+                <div className="data-card-amount">{money(inv.grossAmount)}</div>
+              </div>
+              <div className="data-card-meta">
+                <span>{statusBadge(inv.status)}</span>
+                <span>· Netto {money(inv.netAmount)}</span>
+                {inv.vatAmount > 0 && <span>· USt {money(inv.vatAmount)}</span>}
+              </div>
+              <div className="data-card-actions">
+                {inv.status === "open" && (
+                  <button className="btn btn-sm" onClick={(e) => handleMarkPaid(e, inv._id)}>
+                    Als bezahlt markieren
+                  </button>
+                )}
+                <button className="btn btn-sm" onClick={(e) => handleDelete(e, inv._id, inv.number)} style={{ color: "var(--danger)" }}>
+                  Löschen
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {showManual && (
@@ -768,7 +870,7 @@ function CustomersPage({ userId, sessionToken }: { userId: any; sessionToken: st
         </div>
       )}
 
-      {/* Customer Table */}
+      {/* Customer Table — Desktop */}
       <div className="table-wrap">
         <table>
           <thead>
@@ -804,6 +906,36 @@ function CustomersPage({ userId, sessionToken }: { userId: any; sessionToken: st
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile: Card List */}
+      <div className="data-cards">
+        {customers.length === 0 ? (
+          <div className="empty-state" style={{ padding: "2rem 1rem", textAlign: "center" }}>
+            <h3>Keine Kunden</h3>
+            <p>Lege deinen ersten Kunden an.</p>
+            <button className="btn btn-primary btn-sm" style={{ marginTop: "1rem" }} onClick={() => setShowAdd(true)}>
+              + Neuer Kunde
+            </button>
+          </div>
+        ) : (
+          customers.map((c: any) => (
+            <div key={c._id} className="data-card" onClick={() => setDetailId(c._id)}>
+              <div className="data-card-header">
+                <div>
+                  <div className="data-card-title">{c.name}</div>
+                  <div className="data-card-meta">
+                    {[c.street, c.postalCityCountry].filter(Boolean).join(", ") || ""}
+                  </div>
+                </div>
+              </div>
+              <div className="data-card-meta">
+                {c.uid && <span>UID: {c.uid}</span>}
+                {c.email && <><span>·</span><span>{c.email}</span></>}
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {detailId && (
