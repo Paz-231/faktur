@@ -153,7 +153,15 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
       setVoiceText(finalText);
     };
     recognition.onerror = (event: any) => {
-      setError(`Spracherkennung: ${event.error}`);
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setError("Mikrofon-Zugriff verweigert. Prüfe die Browser-Berechtigung (URL-Leiste → Sicherheit → Mikrofon erlauben) oder tippe den Text direkt ein.");
+      } else if (event.error === "no-speech") {
+        setError("Keine Sprache erkannt. Versuche es erneut oder tippe den Text ein.");
+      } else if (event.error === "network") {
+        setError("Netzwerkfehler bei der Spracherkennung. Tippe den Text ein.");
+      } else {
+        setError(`Spracherkennung: ${event.error}`);
+      }
       setRecording(false);
     };
     recognition.onend = () => { setRecording(false); };
