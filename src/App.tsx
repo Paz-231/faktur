@@ -220,9 +220,9 @@ export default function App() {
         {/* Hero */}
         <motion.section className="hero" id="start" style={{ y: heroY }}>
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 0 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.2, 0, 0, 1] }}
+            transition={{ duration: 0.3, ease: [0.2, 0, 0, 1] }}
           >
             <span className="hero-badge">Rechnungen + Buchhaltung für Selbständige in AT & DE</span>
             <h1>Rechnung fertig<br />in <span>30 Sekunden.</span></h1>
