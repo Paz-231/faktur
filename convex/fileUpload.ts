@@ -247,37 +247,48 @@ export const scanOutgoingFile = action({
       throw new Error("Kein API-Key konfiguriert — Vision-Scan nicht verfügbar");
     }
 
-    const visionResponse = await fetch(`${apiUrl}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "system",
-            content: `You are an invoice/timesheet scanner for Austrian and German freelancers. The user uploads a photo of a timesheet, handwritten notes, or a draft invoice. Extract the data needed to CREATE an outgoing invoice (Honorarnote or Rechnung). Return JSON: {recipient_name, recipient_street, recipient_city, recipient_uid, items:[{description, qty, unit_price, unit}], net_amount, vat_rate, tax_mode, payment_terms, date, delivery_date, invoice_type}. unit should be one of: Stunden, Stück, Monate, Pauschal, Tag, Quadratmeter. tax_mode should be one of: kleinunternehmer, ust_standard, ust_ermaessigt, reverse_charge, befreit. invoice_type should be "Rechnung" or "Honorarnote". Only fill what's visible. Return ONLY JSON.`,
-          },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Extrahiere alle Daten für die Rechnungserstellung aus diesem Dokument." },
-              { type: "image_url", image_url: { url: `data:${contentType};base64,${base64}` } },
-            ],
-          },
-        ],
-        temperature: 0.1,
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!visionResponse.ok) {
-      throw new Error(`Vision API Fehler: ${visionResponse.status}`);
+    let visionResponse: Response;
+    try {
+      visionResponse = await fetch(`${apiUrl}/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: "system",
+              content: `You are an invoice/timesheet scanner for Austrian and German freelancers. The user uploads a photo of a timesheet, handwritten notes, or a draft invoice. Extract the data needed to CREATE an outgoing invoice (Honorarnote or Rechnung). Return JSON: {recipient_name, recipient_street, recipient_city, recipient_uid, items:[{description, qty, unit_price, unit}], net_amount, vat_rate, tax_mode, payment_terms, date, delivery_date, invoice_type}. unit should be one of: Stunden, Stück, Monate, Pauschal, Tag, Quadratmeter. tax_mode should be one of: kleinunternehmer, ust_standard, ust_ermaessigt, reverse_charge, befreit. invoice_type should be "Rechnung" or "Honorarnote". Only fill what's visible. Return ONLY JSON.`,
+            },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Extrahiere alle Daten für die Rechnungserstellung aus diesem Dokument." },
+                { type: "image_url", image_url: { url: `data:${contentType};base64,${base64}` } },
+              ],
+            },
+          ],
+          temperature: 0.1,
+          response_format: { type: "json_object" },
+        }),
+      });
+    } catch (fetchErr: any) {
+      throw new Error(`Netzwerkfehler beim Kontaktieren der KI-API: ${fetchErr.message || "unbekannt"}`);
     }
 
-    const result = await visionResponse.json();
+    if (!visionResponse.ok) {
+      const errBody = await visionResponse.text().catch(() => "");
+      throw new Error(`KI-API Fehler ${visionResponse.status}: ${errBody.substring(0, 200)}`);
+    }
+
+    let result: any;
+    try {
+      result = await visionResponse.json();
+    } catch (parseErr: any) {
+      throw new Error("KI-API Antwort konnte nicht gelesen werden (ungültiges JSON).");
+    }
     const content: string = result.choices?.[0]?.message?.content || "";
     const jsonText = content.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
     const extracted = JSON.parse(jsonText);
@@ -321,40 +332,61 @@ export const parseVoiceToInvoice = action({
     const model = process.env.VISION_MODEL || "openai/gpt-4o";
 
     if (!apiKey) {
-      throw new Error("Kein API-Key konfiguriert — Voice-Scan nicht verfügbar");
+      throw new Error("Kein API-Key konfiguriert. Bitte OPENROUTER_API_KEY in Convex setzen.");
     }
 
-    const llmResponse = await fetch(`${apiUrl}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "system",
-            content: `You are an invoice parser for Austrian and German freelancers. The user dictates or types what they want to invoice. Extract invoice data. Return JSON: {recipient_name, recipient_street, recipient_city, recipient_uid, items:[{description, qty, unit_price, unit}], net_amount, vat_rate, tax_mode, payment_terms, date, delivery_date, invoice_type}. unit should be one of: Stunden, Stück, Monate, Pauschal, Tag, Quadratmeter. tax_mode should be one of: kleinunternehmer, ust_standard, ust_ermaessigt, reverse_charge, befreit. invoice_type should be "Rechnung" or "Honorarnote". Only fill what's mentioned. Return ONLY JSON.`,
-          },
-          {
-            role: "user",
-            content: args.text,
-          },
-        ],
-        temperature: 0.1,
-        response_format: { type: "json_object" },
-      }),
-    });
+    let llmResponse: Response;
+    try {
+      llmResponse = await fetch(`${apiUrl}/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: "system",
+              content: `You are an invoice parser for Austrian and German freelancers. The user dictates or types what they want to invoice. Extract invoice data. Return JSON: {recipient_name, recipient_street, recipient_city, recipient_uid, items:[{description, qty, unit_price, unit}], net_amount, vat_rate, tax_mode, payment_terms, date, delivery_date, invoice_type}. unit should be one of: Stunden, Stück, Monate, Pauschal, Tag, Quadratmeter. tax_mode should be one of: kleinunternehmer, ust_standard, ust_ermaessigt, reverse_charge, befreit. invoice_type should be "Rechnung" or "Honorarnote". Only fill what's mentioned. Return ONLY JSON.`,
+            },
+            {
+              role: "user",
+              content: args.text,
+            },
+          ],
+          temperature: 0.1,
+          response_format: { type: "json_object" },
+        }),
+      });
+    } catch (fetchErr: any) {
+      throw new Error(`Netzwerkfehler beim Kontaktieren der KI-API: ${fetchErr.message || "unbekannt"}`);
+    }
 
     if (!llmResponse.ok) {
-      throw new Error(`LLM API Fehler: ${llmResponse.status}`);
+      const errBody = await llmResponse.text().catch(() => "");
+      throw new Error(`KI-API Fehler ${llmResponse.status}: ${errBody.substring(0, 200)}`);
     }
 
-    const result = await llmResponse.json();
+    let result: any;
+    try {
+      result = await llmResponse.json();
+    } catch (parseErr: any) {
+      throw new Error("KI-API Antwort konnte nicht gelesen werden (ungültiges JSON).");
+    }
+
     const content: string = result.choices?.[0]?.message?.content || "";
-    const jsonText = content.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
-    const extracted = JSON.parse(jsonText);
+    if (!content) {
+      throw new Error("KI-API hat keine Antwort geliefert.");
+    }
+
+    let extracted: any;
+    try {
+      const jsonText = content.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      extracted = JSON.parse(jsonText);
+    } catch (parseErr: any) {
+      throw new Error("KI-Antwort konnte nicht als JSON geparst werden.");
+    }
 
     return {
       recipient_name: extracted.recipient_name || "",
