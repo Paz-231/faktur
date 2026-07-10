@@ -233,6 +233,31 @@ export const discard = mutation({
   },
 });
 
+// Reactivate discarded auftrag — zurück auf Entwurf
+export const reactivate = mutation({
+  args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const auftrag = await ctx.db.get(args.auftragId);
+    if (!auftrag) throw new Error("Auftrag not found");
+    if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
+    if (auftrag.status !== "discarded") throw new Error("Nur verworfene Aufträge können reaktiviert werden");
+
+    await ctx.db.patch(args.auftragId, {
+      status: "draft",
+      discardedDate: undefined,
+      updatedAt: Date.now(),
+    });
+
+    await ctx.db.insert("auditLog", {
+      userId: auftrag.userId,
+      action: "auftrag_reactivated",
+      details: `Auftrag ${auftrag.number} reaktiviert`,
+      timestamp: Date.now(),
+    });
+  },
+});
+
 // Unconfirm — setzt einen bestätigten Auftrag zurück auf Entwurf
 // Nur erlaubt wenn noch keine Rechnung generiert wurde
 export const unconfirm = mutation({

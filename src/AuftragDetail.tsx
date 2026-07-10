@@ -38,6 +38,7 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
   const discardAuftrag = useMutation(api.auftrags.discard);
   const unconfirmAuftrag = useMutation(api.auftrags.unconfirm);
   const deleteAuftrag = useMutation(api.auftrags.deleteAuftrag);
+  const reactivateAuftrag = useMutation(api.auftrags.reactivate);
   const angebotMarkSent = useMutation(api.angebots.markSent);
   const angebotConfirm = useMutation(api.angebots.confirm);
   const stornoRechnung = useMutation(api.invoices.storno);
@@ -134,6 +135,18 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
       onClose();
     } catch (err: any) {
       alert(err.message || "Löschen fehlgeschlagen");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleReactivate = async () => {
+    setLoading("reactivate");
+    try {
+      await reactivateAuftrag({ auftragId: auftragId as any, sessionToken });
+      onRefresh();
+    } catch (err: any) {
+      alert(err.message || "Reaktivieren fehlgeschlagen");
     } finally {
       setLoading(null);
     }
@@ -284,6 +297,16 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
               </button>
               <button className="btn" onClick={handleDiscard} disabled={loading === "discard"} style={{ color: "var(--danger)" }}>
                 {loading === "discard" ? "Verwerfe..." : "Verwerfen"}
+              </button>
+              <button className="btn" onClick={handleDelete} disabled={loading === "delete"} style={{ color: "var(--danger)" }}>
+                {loading === "delete" ? "Lösche..." : "Löschen"}
+              </button>
+            </div>
+          )}
+          {auftrag.status === "discarded" && (
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+              <button className="btn btn-primary" onClick={handleReactivate} disabled={loading === "reactivate"}>
+                {loading === "reactivate" ? "Reaktiviere..." : "Reaktivieren"}
               </button>
               <button className="btn" onClick={handleDelete} disabled={loading === "delete"} style={{ color: "var(--danger)" }}>
                 {loading === "delete" ? "Lösche..." : "Löschen"}
