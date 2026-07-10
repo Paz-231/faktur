@@ -276,33 +276,72 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
 
           {/* Items */}
           <h4 className="responsive-hide-label" style={{ marginTop: "1rem", marginBottom: "0.75rem" }}>Positionen</h4>
-          {items.map((item, idx) => (
-            <div key={idx} className="item-row" style={{ display: "grid", gridTemplateColumns: "2fr 60px 1fr 100px 32px", gap: "0.5rem", marginBottom: "0.5rem", alignItems: "end" }}>
-              <div>
-                {idx === 0 && <label className="label">Beschreibung</label>}
-                <input className="input" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Beratungsleistung" />
+
+          {/* Desktop: Grid Table */}
+          <div className="item-row-desktop">
+            {items.map((item, idx) => (
+              <div key={idx} className="item-row" style={{ display: "grid", gridTemplateColumns: "2fr 60px 1fr 100px 32px", gap: "0.5rem", marginBottom: "0.5rem", alignItems: "end" }}>
+                <div>
+                  {idx === 0 && <label className="label">Beschreibung</label>}
+                  <input className="input" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Beratungsleistung" />
+                </div>
+                <div>
+                  {idx === 0 && <label className="label">Menge</label>}
+                  <input className="input" type="number" min="1" value={item.qty} onChange={(e) => updateItem(idx, "qty", e.target.value)} />
+                </div>
+                <div>
+                  {idx === 0 && <label className="label">Einheit</label>}
+                  <select className="select" value={item.unit} onChange={(e) => updateItem(idx, "unit", e.target.value)}>
+                    {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+                <div>
+                  {idx === 0 && <label className="label">Preis/Einh.</label>}
+                  <input className="input" type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", e.target.value)} />
+                </div>
+                <div>
+                  {items.length > 1 && (
+                    <button className="btn btn-ghost btn-icon" onClick={() => removeItem(idx)} style={{ color: "var(--danger)" }}>×</button>
+                  )}
+                </div>
               </div>
-              <div>
-                {idx === 0 && <label className="label">Menge</label>}
-                <input className="input" type="number" min="1" value={item.qty} onChange={(e) => updateItem(idx, "qty", e.target.value)} />
+            ))}
+          </div>
+
+          {/* Mobile: Card Layout */}
+          <div className="item-cards">
+            {items.map((item, idx) => (
+              <div key={idx} className="item-card">
+                <div className="item-card-top">
+                  <span className="item-card-num">Position {idx + 1}</span>
+                  {items.length > 1 && (
+                    <button className="btn btn-ghost btn-icon" onClick={() => removeItem(idx)} style={{ color: "var(--danger)", padding: "0.25rem" }}>×</button>
+                  )}
+                </div>
+                <div className="field-group">
+                  <label className="label">Beschreibung</label>
+                  <input className="input" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Beratungsleistung" />
+                </div>
+                <div className="item-card-row">
+                  <div className="field-group">
+                    <label className="label">Menge</label>
+                    <input className="input" type="number" min="1" value={item.qty} onChange={(e) => updateItem(idx, "qty", e.target.value)} />
+                  </div>
+                  <div className="field-group">
+                    <label className="label">Einheit</label>
+                    <select className="select" value={item.unit} onChange={(e) => updateItem(idx, "unit", e.target.value)}>
+                      {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="field-group">
+                  <label className="label">Preis/Einh. (EUR)</label>
+                  <input className="input" type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", e.target.value)} />
+                </div>
               </div>
-              <div>
-                {idx === 0 && <label className="label">Einheit</label>}
-                <select className="select" value={item.unit} onChange={(e) => updateItem(idx, "unit", e.target.value)}>
-                  {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                </select>
-              </div>
-              <div>
-                {idx === 0 && <label className="label">Preis/Einh.</label>}
-                <input className="input" type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", e.target.value)} />
-              </div>
-              <div>
-                {items.length > 1 && (
-                  <button className="btn btn-ghost btn-icon" onClick={() => removeItem(idx)} style={{ color: "var(--danger)" }}>×</button>
-                )}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
           <button className="btn btn-sm" onClick={addItem} style={{ marginTop: "0.5rem" }}>+ Position</button>
 
           {/* Tax */}

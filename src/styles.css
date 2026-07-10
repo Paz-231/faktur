@@ -812,6 +812,40 @@ tbody tr:hover {
 /* Desktop: table visible, cards hidden */
 .data-cards { display: none; }
 
+/* Item row desktop/mobile toggle */
+.item-row-desktop { display: block; }
+.item-cards { display: none; }
+
+@media (max-width: 768px) {
+  .item-row-desktop { display: none; }
+  .item-cards { display: flex; flex-direction: column; gap: 0.625rem; }
+
+  .item-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.875rem;
+  }
+  .item-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.625rem;
+  }
+  .item-card-num {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-3);
+    font-weight: 500;
+  }
+  .item-card-row {
+    display: flex;
+    gap: 0.625rem;
+  }
+  .item-card-row .field-group { flex: 1; }
+}
+
 @media (max-width: 768px) {
   /* Hide table wrapper on mobile */
   .table-wrap { display: none; }
