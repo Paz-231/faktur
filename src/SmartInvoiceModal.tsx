@@ -29,6 +29,45 @@ interface SmartInvoiceModalProps {
   initialCustomer?: InitialCustomer;
 }
 
+// Minimal stroke icons (24px, currentColor)
+function ModeIcon({ name }: { name: string }) {
+  const paths: Record<string, React.ReactNode> = {
+    camera: (
+      <>
+        <path d="M3 7h3l2-3h8l2 3h3v12H3V7Z" />
+        <circle cx="12" cy="13" r="4" />
+      </>
+    ),
+    mic: (
+      <>
+        <rect x="9" y="2" width="6" height="12" rx="3" />
+        <path d="M5 11a7 7 0 0 0 14 0" />
+        <path d="M12 18v4" />
+      </>
+    ),
+    edit: (
+      <>
+        <path d="M14 4l6 6L8 22H2v-6L14 4Z" />
+        <path d="M11 7l6 6" />
+      </>
+    ),
+    upload: (
+      <>
+        <path d="M12 3v14" />
+        <path d="M6 9l6-6 6 6" />
+        <path d="M4 21h16" />
+      </>
+    ),
+    back: <path d="M19 12H5M11 18l-6-6 6-6" />,
+    check: <path d="M20 6L9 17l-5-5" />,
+  };
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {paths[name]}
+    </svg>
+  );
+}
+
 export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, initialCustomer }: SmartInvoiceModalProps) {
   const [mode, setMode] = useState<"choice" | "photo" | "voice" | "manual">("choice");
   const [scanning, setScanning] = useState(false);
@@ -64,7 +103,6 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
       setError("Datei zu groß. Maximum: 10MB");
       return;
     }
-
     setScanning(true);
     try {
       const uploadUrl = await generateUploadUrl({ sessionToken });
@@ -75,7 +113,6 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
       });
       if (!uploadResponse.ok) throw new Error("Upload fehlgeschlagen");
       const { storageId } = await uploadResponse.json();
-
       const result = await scanOutgoing({ sessionToken, fileStorageId: storageId });
       setScanResult(result);
     } catch (err: any) {
@@ -100,12 +137,10 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
       setError("Spracherkennung wird von diesem Browser nicht unterstützt. Tippe den Text ein.");
       return;
     }
-
     const recognition = new SR();
     recognition.lang = "de-AT";
     recognition.continuous = true;
     recognition.interimResults = true;
-
     recognition.onresult = (event: any) => {
       let finalText = "";
       for (let i = 0; i < event.results.length; i++) {
@@ -117,16 +152,11 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
       }
       setVoiceText(finalText);
     };
-
     recognition.onerror = (event: any) => {
       setError(`Spracherkennung: ${event.error}`);
       setRecording(false);
     };
-
-    recognition.onend = () => {
-      setRecording(false);
-    };
-
+    recognition.onend = () => { setRecording(false); };
     recognitionRef.current = recognition;
     recognition.start();
     setRecording(true);
@@ -154,105 +184,95 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
     }
   };
 
+  const goBack = () => { setMode("choice"); setError(""); };
+
   // ── Render ──
 
-  // Manual mode → render CreateInvoiceModal directly
   if (mode === "manual") {
-    return (
-      <CreateInvoiceModal
-        userId={userId}
-        sessionToken={sessionToken}
-        onClose={onClose}
-        onCreated={onCreated}
-        initialCustomer={initialCustomer}
-      />
-    );
+    return <CreateInvoiceModal userId={userId} sessionToken={sessionToken} onClose={onClose} onCreated={onCreated} initialCustomer={initialCustomer} />;
   }
 
-  // If scan result is ready, pass to CreateInvoiceModal as pre-filled data
   if (scanResult) {
-    return (
-      <CreateInvoiceModal
-        userId={userId}
-        sessionToken={sessionToken}
-        onClose={onClose}
-        onCreated={onCreated}
-        initialCustomer={initialCustomer}
-        prefillData={scanResult}
-      />
-    );
+    return <CreateInvoiceModal userId={userId} sessionToken={sessionToken} onClose={onClose} onCreated={onCreated} initialCustomer={initialCustomer} prefillData={scanResult} />;
   }
+
+  const modeOptions = [
+    { id: "photo" as const, icon: "camera", title: "Foto / PDF hochladen", desc: "Stundenzettel oder Notiz abfotografieren — KI extrahiert alle Daten" },
+    { id: "voice" as const, icon: "mic", title: voiceSupported ? "Diktieren oder tippen" : "Text eingeben", desc: voiceSupported ? "Spracheingabe oder Text — KI erstellt die Rechnung" : "Text beschreiben — KI erstellt die Rechnung" },
+    { id: "manual" as const, icon: "edit", title: "Manuell erfassen", desc: "Alle Felder selbst ausfüllen" },
+  ];
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "min(520px, 100%)" }}>
         <div className="modal-header">
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Neuer Auftrag</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            {mode !== "choice" && (
+              <button className="btn btn-ghost btn-icon" onClick={goBack} style={{ padding: "0.25rem" }}>
+                <ModeIcon name="back" />
+              </button>
+            )}
+            <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>
+              {mode === "choice" ? "Neuer Auftrag" : mode === "photo" ? "Foto / PDF" : mode === "voice" ? "Diktieren / Tippen" : ""}
+            </h2>
+          </div>
           <button className="btn btn-ghost btn-icon" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body">
+          {/* ── Choice Screen ── */}
           {mode === "choice" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", padding: "0.5rem 0" }}>
-              <p style={{ fontSize: "0.8125rem", color: "var(--fg-3)", marginBottom: "0.5rem" }}>
-                Wie möchtest du die Rechnung erstellen?
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem", padding: "0.25rem 0" }}>
+              <p style={{ fontSize: "0.8125rem", color: "var(--fg-3)", marginBottom: "0.25rem" }}>
+                Wie möchtest du den Auftrag erstellen?
               </p>
-
-              <button
-                className="btn"
-                onClick={() => setMode("photo")}
-                style={{ display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: "flex-start", padding: "1rem", textAlign: "left" }}
-              >
-                <span style={{ fontSize: "1.25rem", opacity: 0.5 }}>camera</span>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>Foto / PDF hochladen</div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--fg-4)" }}>Stundenzettel oder Notiz abfotografieren — KI extrahiert alle Daten</div>
-                </div>
-              </button>
-
-              <button
-                className="btn"
-                onClick={() => setMode("voice")}
-                style={{ display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: "flex-start", padding: "1rem", textAlign: "left" }}
-              >
-                <span style={{ fontSize: "1.25rem", opacity: 0.5 }}>mic</span>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>Diktieren oder tippen</div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--fg-4)" }}>
-                    {voiceSupported ? "Spracheingabe oder Text — KI erstellt die Rechnung" : "Text eingeben — KI erstellt die Rechnung"}
+              {modeOptions.map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => setMode(opt.id)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.875rem",
+                    padding: "1rem 1.125rem",
+                    textAlign: "left",
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "0.5rem",
+                    cursor: "pointer",
+                    transition: "border-color 0.15s ease, background 0.15s ease",
+                    minHeight: "72px",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; }}
+                >
+                  <span style={{ color: "var(--accent)", flexShrink: 0, display: "flex" }}>
+                    <ModeIcon name={opt.icon} />
+                  </span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>{opt.title}</div>
+                    <div style={{ fontSize: "0.75rem", color: "var(--fg-4)", marginTop: "0.125rem" }}>{opt.desc}</div>
                   </div>
-                </div>
-              </button>
-
-              <button
-                className="btn"
-                onClick={() => setMode("manual")}
-                style={{ display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: "flex-start", padding: "1rem", textAlign: "left" }}
-              >
-                <span style={{ fontSize: "1.25rem", opacity: 0.5 }}>edit</span>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>Manuell erfassen</div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--fg-4)" }}>Alle Felder selbst ausfüllen</div>
-                </div>
-              </button>
-
+                </button>
+              ))}
               {error && (
-                <div style={{ marginTop: "0.5rem", padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--danger)", color: "var(--danger)", fontSize: "0.8125rem" }}>
+                <div style={{ marginTop: "0.25rem", padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--danger)", color: "var(--danger)", fontSize: "0.8125rem", borderRadius: "0.375rem" }}>
                   {error}
                 </div>
               )}
             </div>
           )}
 
+          {/* ── Photo Screen ── */}
           {mode === "photo" && (
-            <div>
-              <button className="btn btn-ghost btn-sm" onClick={() => { setMode("choice"); setError(""); }} style={{ marginBottom: "1rem" }}>← Zurück</button>
-
+            <>
               {scanning ? (
                 <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
-                  <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem", color: "var(--accent)" }}>scanning...</div>
-                  <p style={{ fontSize: "0.8125rem" }}>KI analysiert das Dokument...</p>
-                  <small style={{ color: "var(--fg-4)" }}>Empfänger, Positionen und Beträge werden extrahiert</small>
+                  <div style={{ marginBottom: "1rem", color: "var(--accent)" }}>
+                    <ModeIcon name="camera" />
+                  </div>
+                  <p style={{ fontSize: "0.875rem", fontWeight: 500 }}>KI analysiert das Dokument...</p>
+                  <small style={{ color: "var(--fg-4)", marginTop: "0.375rem", display: "block" }}>Empfänger, Positionen und Beträge werden extrahiert</small>
                 </div>
               ) : (
                 <div
@@ -263,9 +283,11 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
                   style={{
                     border: `2px dashed ${dragOver ? "var(--accent)" : "var(--border)"}`,
                     background: dragOver ? "var(--surface-2)" : "var(--surface)",
-                    padding: "2.5rem 2rem",
+                    padding: "2.5rem 1.5rem",
                     textAlign: "center",
                     cursor: "pointer",
+                    borderRadius: "0.5rem",
+                    transition: "border-color 0.15s ease, background 0.15s ease",
                   }}
                 >
                   <input
@@ -275,60 +297,77 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
                     style={{ display: "none" }}
                   />
-                  <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem", opacity: 0.4, fontFamily: "inherit" }}>upload</div>
-                  <p style={{ fontSize: "0.8125rem" }}>Foto oder PDF hierher ziehen oder klicken</p>
-                  <small style={{ color: "var(--fg-4)" }}>Stundenzettel, Notiz, Hand-Rechnung · max 10MB</small>
+                  <div style={{ color: "var(--fg-4)", marginBottom: "0.75rem", display: "flex", justifyContent: "center" }}>
+                    <ModeIcon name="upload" />
+                  </div>
+                  <p style={{ fontSize: "0.8125rem", fontWeight: 500 }}>Foto oder PDF hierher ziehen oder klicken</p>
+                  <small style={{ color: "var(--fg-4)", marginTop: "0.375rem", display: "block" }}>Stundenzettel, Notiz, Hand-Rechnung · max 10MB</small>
                 </div>
               )}
-
               {error && (
-                <div style={{ marginTop: "1rem", padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--danger)", color: "var(--danger)", fontSize: "0.8125rem" }}>
+                <div style={{ marginTop: "1rem", padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--danger)", color: "var(--danger)", fontSize: "0.8125rem", borderRadius: "0.375rem" }}>
                   {error}
                 </div>
               )}
-            </div>
+            </>
           )}
 
+          {/* ── Voice Screen ── */}
           {mode === "voice" && (
-            <div>
-              <button className="btn btn-ghost btn-sm" onClick={() => { setMode("choice"); setError(""); }} style={{ marginBottom: "1rem" }}>← Zurück</button>
-
+            <>
               {scanning ? (
                 <div style={{ textAlign: "center", padding: "3rem 1rem" }}>
-                  <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem", color: "var(--accent)" }}>parsing...</div>
-                  <p style={{ fontSize: "0.8125rem" }}>KI analysiert den Text...</p>
+                  <div style={{ marginBottom: "1rem", color: "var(--accent)" }}>
+                    <ModeIcon name="mic" />
+                  </div>
+                  <p style={{ fontSize: "0.875rem", fontWeight: 500 }}>KI analysiert den Text...</p>
                 </div>
               ) : (
                 <>
                   <div style={{ marginBottom: "1rem" }}>
                     {voiceSupported && (
                       <button
-                        className={`btn ${recording ? "btn-primary" : "btn"}`}
                         onClick={recording ? stopRecording : startRecording}
-                        style={{ marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                          padding: "0.75rem 1.125rem",
+                          background: recording ? "var(--danger)" : "var(--surface)",
+                          border: `1px solid ${recording ? "var(--danger)" : "var(--border)"}`,
+                          color: recording ? "white" : "var(--fg)",
+                          borderRadius: "0.5rem",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          fontSize: "0.8125rem",
+                          fontWeight: 500,
+                          marginBottom: "0.75rem",
+                          width: "100%",
+                          justifyContent: "center",
+                          transition: "all 0.15s ease",
+                        }}
                       >
-                        <span>{recording ? "● Aufnahme — Klick zum Stoppen" : "Diktieren starten"}</span>
+                        <span style={{ display: "flex" }}><ModeIcon name="mic" /></span>
+                        {recording ? "Aufnahme läuft — Klick zum Stoppen" : "Diktieren starten"}
                       </button>
                     )}
                     <textarea
                       className="input"
                       value={voiceText}
                       onChange={(e) => setVoiceText(e.target.value)}
-                      placeholder="z.B. Rechnung an Müller GmbH in Wien, 10 Stunden Beratung à 85 Euro, Zahlbar innerhalb 14 Tagen..."
+                      placeholder={"z.B. Rechnung an Müller GmbH in Wien, 10 Stunden Beratung à 85 Euro, Zahlbar innerhalb 14 Tagen..."}
                       rows={5}
-                      style={{ width: "100%", resize: "vertical", fontFamily: "inherit" }}
+                      style={{ width: "100%", resize: "vertical", fontFamily: "inherit", borderRadius: "0.5rem", minHeight: "120px" }}
                     />
                   </div>
-
                   <button
                     className="btn btn-primary"
                     onClick={handleVoiceParse}
                     disabled={!voiceText.trim()}
-                    style={{ width: "100%", justifyContent: "center" }}
+                    style={{ width: "100%", justifyContent: "center", minHeight: "44px" }}
                   >
                     KI analysieren
                   </button>
-
                   <p style={{ fontSize: "0.6875rem", color: "var(--fg-4)", marginTop: "0.75rem", textAlign: "center" }}>
                     {voiceSupported
                       ? "Diktiere oder tippe — die KI erkennt Empfänger, Positionen, Beträge und Steuerstatus."
@@ -336,13 +375,12 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
                   </p>
                 </>
               )}
-
               {error && (
-                <div style={{ marginTop: "1rem", padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--danger)", color: "var(--danger)", fontSize: "0.8125rem" }}>
+                <div style={{ marginTop: "1rem", padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--danger)", color: "var(--danger)", fontSize: "0.8125rem", borderRadius: "0.375rem" }}>
                   {error}
                 </div>
               )}
-            </div>
+            </>
           )}
         </div>
       </div>
