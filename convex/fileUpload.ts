@@ -208,6 +208,176 @@ export const scanInvoiceFile = action({
   },
 });
 
+// ═══════════════════════════════════════════════════════════
+// Outgoing Invoice Scan — Foto/Stundenzettel → Rechnungsdaten
+// ═══════════════════════════════════════════════════════════
+
+// Scan a file (photo/PDF) and extract invoice data for an OUTGOING invoice
+// (e.g. timesheet photo → recipient, items, amounts)
+export const scanOutgoingFile = action({
+  args: {
+    sessionToken: v.string(),
+    fileStorageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+
+    const fileUrl = await ctx.storage.getUrl(args.fileStorageId);
+    if (!fileUrl) throw new Error("Datei nicht gefunden");
+
+    const response = await fetch(fileUrl);
+    const blob = await response.blob();
+    const buffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    const contentType = response.headers.get("content-type") || "application/octet-stream";
+
+    // Convert to base64
+    let binary = "";
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
+    }
+    const base64 = btoa(binary);
+
+    const apiKey = process.env.BUILT_IN_FORGE_API_KEY || process.env.OPENROUTER_API_KEY;
+    const apiUrl = process.env.BUILT_IN_FORGE_API_URL || "https://openrouter.ai/api";
+    const model = process.env.VISION_MODEL || "openai/gpt-4o";
+
+    if (!apiKey) {
+      throw new Error("Kein API-Key konfiguriert — Vision-Scan nicht verfügbar");
+    }
+
+    const visionResponse = await fetch(`${apiUrl}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "system",
+            content: `You are an invoice/timesheet scanner for Austrian and German freelancers. The user uploads a photo of a timesheet, handwritten notes, or a draft invoice. Extract the data needed to CREATE an outgoing invoice (Honorarnote or Rechnung). Return JSON: {recipient_name, recipient_street, recipient_city, recipient_uid, items:[{description, qty, unit_price, unit}], net_amount, vat_rate, tax_mode, payment_terms, date, delivery_date, invoice_type}. unit should be one of: Stunden, Stück, Monate, Pauschal, Tag, Quadratmeter. tax_mode should be one of: kleinunternehmer, ust_standard, ust_ermaessigt, reverse_charge, befreit. invoice_type should be "Rechnung" or "Honorarnote". Only fill what's visible. Return ONLY JSON.`,
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Extrahiere alle Daten für die Rechnungserstellung aus diesem Dokument." },
+              { type: "image_url", image_url: { url: `data:${contentType};base64,${base64}` } },
+            ],
+          },
+        ],
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!visionResponse.ok) {
+      throw new Error(`Vision API Fehler: ${visionResponse.status}`);
+    }
+
+    const result = await visionResponse.json();
+    const content: string = result.choices?.[0]?.message?.content || "";
+    const jsonText = content.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+    const extracted = JSON.parse(jsonText);
+
+    // Clean up file after scan
+    await ctx.storage.delete(args.fileStorageId);
+
+    return {
+      recipient_name: extracted.recipient_name || "",
+      recipient_street: extracted.recipient_street || "",
+      recipient_city: extracted.recipient_city || "",
+      recipient_uid: extracted.recipient_uid || "",
+      items: (extracted.items || []).map((item: any) => ({
+        description: String(item.description || ""),
+        qty: Number(item.qty) || 1,
+        unit_price: Number(String(item.unit_price).replace(",", ".")) || 0,
+        unit: String(item.unit || "Stunden"),
+      })),
+      net_amount: Number(String(extracted.net_amount).replace(",", ".")) || 0,
+      vat_rate: Number(extracted.vat_rate) || 0,
+      tax_mode: String(extracted.tax_mode || "kleinunternehmer"),
+      payment_terms: String(extracted.payment_terms || ""),
+      date: String(extracted.date || ""),
+      delivery_date: String(extracted.delivery_date || ""),
+      invoice_type: String(extracted.invoice_type || "Rechnung"),
+    };
+  },
+});
+
+// Parse voice/dictation text → invoice data
+export const parseVoiceToInvoice = action({
+  args: {
+    sessionToken: v.string(),
+    text: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+
+    const apiKey = process.env.BUILT_IN_FORGE_API_KEY || process.env.OPENROUTER_API_KEY;
+    const apiUrl = process.env.BUILT_IN_FORGE_API_URL || "https://openrouter.ai/api";
+    const model = process.env.VISION_MODEL || "openai/gpt-4o";
+
+    if (!apiKey) {
+      throw new Error("Kein API-Key konfiguriert — Voice-Scan nicht verfügbar");
+    }
+
+    const llmResponse = await fetch(`${apiUrl}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "system",
+            content: `You are an invoice parser for Austrian and German freelancers. The user dictates or types what they want to invoice. Extract invoice data. Return JSON: {recipient_name, recipient_street, recipient_city, recipient_uid, items:[{description, qty, unit_price, unit}], net_amount, vat_rate, tax_mode, payment_terms, date, delivery_date, invoice_type}. unit should be one of: Stunden, Stück, Monate, Pauschal, Tag, Quadratmeter. tax_mode should be one of: kleinunternehmer, ust_standard, ust_ermaessigt, reverse_charge, befreit. invoice_type should be "Rechnung" or "Honorarnote". Only fill what's mentioned. Return ONLY JSON.`,
+          },
+          {
+            role: "user",
+            content: args.text,
+          },
+        ],
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!llmResponse.ok) {
+      throw new Error(`LLM API Fehler: ${llmResponse.status}`);
+    }
+
+    const result = await llmResponse.json();
+    const content: string = result.choices?.[0]?.message?.content || "";
+    const jsonText = content.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+    const extracted = JSON.parse(jsonText);
+
+    return {
+      recipient_name: extracted.recipient_name || "",
+      recipient_street: extracted.recipient_street || "",
+      recipient_city: extracted.recipient_city || "",
+      recipient_uid: extracted.recipient_uid || "",
+      items: (extracted.items || []).map((item: any) => ({
+        description: String(item.description || ""),
+        qty: Number(item.qty) || 1,
+        unit_price: Number(String(item.unit_price).replace(",", ".")) || 0,
+        unit: String(item.unit || "Stunden"),
+      })),
+      net_amount: Number(String(extracted.net_amount).replace(",", ".")) || 0,
+      vat_rate: Number(extracted.vat_rate) || 0,
+      tax_mode: String(extracted.tax_mode || "kleinunternehmer"),
+      payment_terms: String(extracted.payment_terms || ""),
+      date: String(extracted.date || ""),
+      delivery_date: String(extracted.delivery_date || ""),
+      invoice_type: String(extracted.invoice_type || "Rechnung"),
+    };
+  },
+});
+
 // Mark scan as failed
 export const markScanFailed = mutation({
   args: {

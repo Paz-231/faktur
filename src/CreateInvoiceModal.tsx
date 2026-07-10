@@ -17,6 +17,21 @@ interface CreateInvoiceModalProps {
   onCreated?: () => void;
   /** Vorausgewählter Kunde (z.B. aus der Kundendetailseite) */
   initialCustomer?: InitialCustomer;
+  /** Vorausgefüllte Daten aus Foto/Voice-Scan */
+  prefillData?: {
+    recipient_name: string;
+    recipient_street: string;
+    recipient_city: string;
+    recipient_uid: string;
+    items: { description: string; qty: number; unit_price: number; unit: string }[];
+    net_amount: number;
+    vat_rate: number;
+    tax_mode: string;
+    payment_terms: string;
+    date: string;
+    delivery_date: string;
+    invoice_type: string;
+  };
 }
 
 interface InvoiceItem {
@@ -36,15 +51,17 @@ const TAX_MODES = [
 
 const UNITS = ["Stunden", "Stück", "Monate", "Pauschal", "Tag", "Quadratmeter"];
 
-export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, initialCustomer }: CreateInvoiceModalProps) {
-  const [type, setType] = useState<"Honorarnote" | "Rechnung">("Rechnung");
-  const [date, setDate] = useState(new Date().toLocaleDateString("de-AT"));
-  const [deliveryDate, setDeliveryDate] = useState("");
+export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, initialCustomer, prefillData }: CreateInvoiceModalProps) {
+  const [type, setType] = useState<"Honorarnote" | "Rechnung">(
+    (prefillData?.invoice_type as "Honorarnote" | "Rechnung") || "Rechnung"
+  );
+  const [date, setDate] = useState(prefillData?.date || new Date().toLocaleDateString("de-AT"));
+  const [deliveryDate, setDeliveryDate] = useState(prefillData?.delivery_date || "");
   const [customerId, setCustomerId] = useState<string>(initialCustomer?.customerId || "");
-  const [recipientName, setRecipientName] = useState(initialCustomer?.name || "");
-  const [recipientStreet, setRecipientStreet] = useState(initialCustomer?.street || "");
-  const [recipientCity, setRecipientCity] = useState(initialCustomer?.city || "");
-  const [recipientUid, setRecipientUid] = useState(initialCustomer?.uid || "");
+  const [recipientName, setRecipientName] = useState(initialCustomer?.name || prefillData?.recipient_name || "");
+  const [recipientStreet, setRecipientStreet] = useState(initialCustomer?.street || prefillData?.recipient_street || "");
+  const [recipientCity, setRecipientCity] = useState(initialCustomer?.city || prefillData?.recipient_city || "");
+  const [recipientUid, setRecipientUid] = useState(initialCustomer?.uid || prefillData?.recipient_uid || "");
 
   // Kundenstamm für die Schnellauswahl
   const customers = useQuery(api.customers.list, { userId: userId as any, sessionToken }) ?? [];
@@ -60,11 +77,13 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
       setRecipientUid(c.uid || "");
     }
   };
-  const [taxMode, setTaxMode] = useState("kleinunternehmer");
-  const [paymentTerms, setPaymentTerms] = useState("Zahlbar ohne Abzug innerhalb von 7 Tagen nach Rechnungserhalt.");
-  const [items, setItems] = useState<InvoiceItem[]>([
-    { description: "", qty: 1, unit: "Stunden", unitPrice: 0 },
-  ]);
+  const [taxMode, setTaxMode] = useState(prefillData?.tax_mode || "kleinunternehmer");
+  const [paymentTerms, setPaymentTerms] = useState(prefillData?.payment_terms || "Zahlbar ohne Abzug innerhalb von 7 Tagen nach Rechnungserhalt.");
+  const [items, setItems] = useState<InvoiceItem[]>(
+    prefillData?.items?.length
+      ? prefillData.items.map(i => ({ description: i.description, qty: i.qty, unit: i.unit, unitPrice: i.unit_price }))
+      : [{ description: "", qty: 1, unit: "Stunden", unitPrice: 0 }]
+  );
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const [createdStep, setCreatedStep] = useState<string | null>(null);

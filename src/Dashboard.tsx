@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { UpgradeModal } from "./UpgradeModal";
 import { FileUpload } from "./FileUpload";
-import { CreateInvoiceModal } from "./CreateInvoiceModal";
+import { SmartInvoiceModal } from "./SmartInvoiceModal";
 import { AuftragDetail } from "./AuftragDetail";
 import { CustomerDetail } from "./CustomerDetail";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
@@ -346,7 +346,7 @@ function DashboardPage({
       </div>
 
       {showCreate && (
-        <CreateInvoiceModal
+        <SmartInvoiceModal
           userId={auth.userId}
           sessionToken={auth.sessionToken}
           onClose={() => setShowCreate(false)}
@@ -430,7 +430,7 @@ function InvoicesPage({ userId, sessionToken }: { userId: any; sessionToken: str
       </div>
 
       {showCreate && (
-        <CreateInvoiceModal
+        <SmartInvoiceModal
           userId={userId}
           sessionToken={sessionToken}
           onClose={() => setShowCreate(false)}
