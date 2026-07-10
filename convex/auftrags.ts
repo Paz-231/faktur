@@ -233,6 +233,125 @@ export const discard = mutation({
   },
 });
 
+// Unconfirm — setzt einen bestätigten Auftrag zurück auf Entwurf
+// Nur erlaubt wenn noch keine Rechnung generiert wurde
+export const unconfirm = mutation({
+  args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const auftrag = await ctx.db.get(args.auftragId);
+    if (!auftrag) throw new Error("Auftrag not found");
+    if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
+    if (auftrag.status !== "confirmed") throw new Error("Auftrag ist nicht bestätigt");
+
+    // Prüfen ob bereits Rechnungen existieren
+    const rechnungIds = auftrag.rechnungIds || [];
+    if (rechnungIds.length > 0) {
+      throw new Error("Auftrag kann nicht zurückgesetzt werden — bereits Rechnungen generiert");
+    }
+
+    await ctx.db.patch(args.auftragId, {
+      status: "draft",
+      confirmedDate: undefined,
+      sentDate: undefined,
+      updatedAt: Date.now(),
+    });
+
+    await ctx.db.insert("auditLog", {
+      userId: auftrag.userId,
+      action: "auftrag_unconfirmed",
+      details: `Auftrag ${auftrag.number} zurückgesetzt auf Entwurf`,
+      timestamp: Date.now(),
+    });
+  },
+});
+
+// Delete auftrag — komplett löschen (nur wenn keine Rechnung existiert)
+export const deleteAuftrag = mutation({
+  args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const auftrag = await ctx.db.get(args.auftragId);
+    if (!auftrag) throw new Error("Auftrag not found");
+    if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
+
+    // Prüfen ob bereits Rechnungen existieren
+    const rechnungIds = auftrag.rechnungIds || [];
+    if (rechnungIds.length > 0) {
+      throw new Error("Auftrag kann nicht gelöscht werden — bereits Rechnungen generiert");
+    }
+
+    // Verknüpftes Angebot ebenfalls löschen
+    const angebot = await ctx.db
+      .query("angebots")
+      .withIndex("userId", (q) => q.eq("userId", auftrag.userId))
+      .filter((q) => q.eq(q.field("auftragId"), args.auftragId))
+      .first();
+
+    if (angebot) {
+      await ctx.db.delete(angebot._id);
+    }
+
+    await ctx.db.delete(args.auftragId);
+
+    await ctx.db.insert("auditLog", {
+      userId: auftrag.userId,
+      action: "auftrag_deleted",
+      details: `Auftrag ${auftrag.number} gelöscht`,
+      timestamp: Date.now(),
+    });
+  },
+});
+
+// Update auftrag — nur im Entwurf-Status
+export const update = mutation({
+  args: {
+    auftragId: v.id("auftrags"),
+    sessionToken: v.string(),
+    date: v.optional(v.string()),
+    deliveryDate: v.optional(v.string()),
+    recipientName: v.optional(v.string()),
+    recipientStreet: v.optional(v.string()),
+    recipientCity: v.optional(v.string()),
+    recipientUid: v.optional(v.string()),
+    taxMode: v.optional(v.string()),
+    taxRate: v.optional(v.number()),
+    taxNote: v.optional(v.string()),
+    netAmount: v.optional(v.number()),
+    vatAmount: v.optional(v.number()),
+    grossAmount: v.optional(v.number()),
+    paymentTerms: v.optional(v.string()),
+    items: v.optional(v.array(v.object({
+      pos: v.number(),
+      description: v.string(),
+      qty: v.number(),
+      unit: v.string(),
+      unitPrice: v.number(),
+      total: v.number(),
+    }))),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const auftrag = await ctx.db.get(args.auftragId);
+    if (!auftrag) throw new Error("Auftrag not found");
+    if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
+    if (auftrag.status !== "draft") throw new Error("Auftrag kann nur im Entwurf-Status bearbeitet werden");
+
+    const { sessionToken, auftragId, ...updates } = args;
+    await ctx.db.patch(auftragId, {
+      ...updates,
+      updatedAt: Date.now(),
+    });
+
+    await ctx.db.insert("auditLog", {
+      userId: auftrag.userId,
+      action: "auftrag_updated",
+      details: `Auftrag ${auftrag.number} bearbeitet`,
+      timestamp: Date.now(),
+    });
+  },
+});
+
 // Generate Angebot from Auftrag
 export const createAngebotFromAuftrag = mutation({
   args: { auftragId: v.id("auftrags"), sessionToken: v.string() },

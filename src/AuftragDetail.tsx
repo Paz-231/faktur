@@ -36,6 +36,8 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
   const createRechnung = useMutation(api.auftrags.createRechnungFromAuftrag);
   const confirmAuftrag = useMutation(api.auftrags.confirm);
   const discardAuftrag = useMutation(api.auftrags.discard);
+  const unconfirmAuftrag = useMutation(api.auftrags.unconfirm);
+  const deleteAuftrag = useMutation(api.auftrags.deleteAuftrag);
   const angebotMarkSent = useMutation(api.angebots.markSent);
   const angebotConfirm = useMutation(api.angebots.confirm);
   const stornoRechnung = useMutation(api.invoices.storno);
@@ -106,6 +108,32 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
       await discardAuftrag({ auftragId: auftragId as any, sessionToken });
       onRefresh();
       onClose();
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleUnconfirm = async () => {
+    setLoading("unconfirm");
+    try {
+      await unconfirmAuftrag({ auftragId: auftragId as any, sessionToken });
+      onRefresh();
+    } catch (err: any) {
+      alert(err.message || "Zurücksetzen fehlgeschlagen");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`Auftrag ${auftrag?.number} unwiderruflich löschen?`)) return;
+    setLoading("delete");
+    try {
+      await deleteAuftrag({ auftragId: auftragId as any, sessionToken });
+      onRefresh();
+      onClose();
+    } catch (err: any) {
+      alert(err.message || "Löschen fehlgeschlagen");
     } finally {
       setLoading(null);
     }
@@ -257,6 +285,9 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
               <button className="btn" onClick={handleDiscard} disabled={loading === "discard"} style={{ color: "var(--danger)" }}>
                 {loading === "discard" ? "Verwerfe..." : "Verwerfen"}
               </button>
+              <button className="btn" onClick={handleDelete} disabled={loading === "delete"} style={{ color: "var(--danger)" }}>
+                {loading === "delete" ? "Lösche..." : "Löschen"}
+              </button>
             </div>
           )}
           {auftrag.status === "confirmed" && (
@@ -279,6 +310,26 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
                   </button>
                 </span>
               </div>
+              {rechnungen.length === 0 && (
+                <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+                  <button
+                    className="btn btn-sm"
+                    onClick={handleUnconfirm}
+                    disabled={loading === "unconfirm"}
+                    style={{ color: "var(--fg-3)" }}
+                  >
+                    {loading === "unconfirm" ? "Zurücksetzen..." : "Bestätigung aufheben"}
+                  </button>
+                  <button
+                    className="btn btn-sm"
+                    onClick={handleDelete}
+                    disabled={loading === "delete"}
+                    style={{ color: "var(--danger)" }}
+                  >
+                    {loading === "delete" ? "Lösche..." : "Auftrag löschen"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
