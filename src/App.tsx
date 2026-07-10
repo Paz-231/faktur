@@ -90,7 +90,6 @@ export default function App() {
 
   // Hero parallax
   const heroY = useTransform(smoothProgress, [0, 0.3], ["0%", "30%"]);
-  const heroOpacity = useTransform(smoothProgress, [0, 0.2], [1, 0]);
 
   const handleSkillBuy = async () => {
     if (!skillEmail) return;
@@ -219,7 +218,7 @@ export default function App() {
         )}
 
         {/* Hero */}
-        <motion.section className="hero" id="start" style={{ y: heroY, opacity: heroOpacity }}>
+        <motion.section className="hero" id="start" style={{ y: heroY }}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
