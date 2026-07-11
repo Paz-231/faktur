@@ -85,6 +85,7 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
   const [recording, setRecording] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const shouldRecordRef = useRef(false); // true while user wants to record — survives re-renders
   const parseVoice = useAction(api.fileUpload.parseVoiceToInvoice);
 
   useEffect(() => {
@@ -155,22 +156,42 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
     recognition.onerror = (event: any) => {
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
         setError("Mikrofon-Zugriff verweigert. Prüfe die Browser-Berechtigung (URL-Leiste → Sicherheit → Mikrofon erlauben) oder tippe den Text direkt ein.");
+        shouldRecordRef.current = false;
       } else if (event.error === "no-speech") {
-        setError("Keine Sprache erkannt. Versuche es erneut oder tippe den Text ein.");
+        // no-speech is normal during pauses — don't show error, just let auto-restart handle it
       } else if (event.error === "network") {
         setError("Netzwerkfehler bei der Spracherkennung. Tippe den Text ein.");
+        shouldRecordRef.current = false;
+      } else if (event.error === "aborted") {
+        // User clicked stop — normal, don't show error
       } else {
         setError(`Spracherkennung: ${event.error}`);
       }
-      setRecording(false);
+      if (event.error !== "no-speech" && event.error !== "aborted") {
+        setRecording(false);
+      }
     };
-    recognition.onend = () => { setRecording(false); };
+    recognition.onend = () => {
+      // Chrome stops recognition after a few seconds of silence or periodically.
+      // Auto-restart if the user still wants to record (shouldRecordRef survives re-renders).
+      if (shouldRecordRef.current) {
+        try {
+          recognition.start();
+        } catch {
+          // "recognition has already started" — ignore, it will restart on next onend
+        }
+      } else {
+        setRecording(false);
+      }
+    };
     recognitionRef.current = recognition;
+    shouldRecordRef.current = true;
     recognition.start();
     setRecording(true);
   };
 
   const stopRecording = () => {
+    shouldRecordRef.current = false;
     recognitionRef.current?.stop();
     setRecording(false);
   };
