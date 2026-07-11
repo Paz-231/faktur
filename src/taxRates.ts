@@ -15,11 +15,12 @@ export interface TaxRateOption {
 export const TAX_RATE_OPTIONS: TaxRateOption[] = [
   // Österreich
   { value: "20", label: "20% — AT Standard", rate: 20, country: "AT", desc: "Normalsatz (Standard)" },
-  { value: "13", label: "13% — AT ermäßigt", rate: 13, country: "AT", desc: "Lebende Tiere, Pflanzen, bestimmte Lebensmittel" },
-  { value: "10", label: "10% — AT stark ermäßigt", rate: 10, country: "AT", desc: "Unverarbeitete Lebensmittel, Bücher, Zeitungen, Personenbeförderung" },
+  { value: "13", label: "13% — AT ermäßigt", rate: 13, country: "AT", desc: "Lebende Tiere, Pflanzen, Holz, Kultureinrichtungen, Beherbergung" },
+  { value: "10", label: "10% — AT stark ermäßigt", rate: 10, country: "AT", desc: "Lebensmittel, Bücher, Zeitungen, Personenbeförderung, Pharmazeutika" },
+  { value: "4.9", label: "4,9% — AT Grundnahrungsmittel", rate: 4.9, country: "AT", desc: "Ausgewählte Grundnahrungsmittel (Butter, Brot, Obst) — seit Juli 2026" },
   // Deutschland
   { value: "19", label: "19% — DE Standard", rate: 19, country: "DE", desc: "Normalsatz (Standard)" },
-  { value: "7", label: "7% — DE ermäßigt", rate: 7, country: "DE", desc: "Lebensmittel, Bücher, Zeitungen, Personenbeförderung" },
+  { value: "7", label: "7% — DE ermäßigt", rate: 7, country: "DE", desc: "Lebensmittel, Bücher, Zeitungen, Personenbeförderung, Gastronomie (ohne Getränke)" },
   // 0%
   { value: "0", label: "0% — Steuerfrei", rate: 0, country: "ALL", desc: "Kleinunternehmer, Reverse Charge, befreit" },
 ];
