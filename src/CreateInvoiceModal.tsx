@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
+import { SelectPicker } from "./SelectPicker";
 
 export interface InitialCustomer {
   customerId: string;
@@ -50,6 +51,8 @@ const TAX_MODES = [
 ];
 
 const UNITS = ["Stunden", "Stück", "Monate", "Pauschal", "Tag", "Quadratmeter"];
+const UNIT_OPTIONS = UNITS.map((u) => ({ value: u, label: u }));
+const TAX_MODE_OPTIONS = TAX_MODES.map((m) => ({ value: m.value, label: m.label }));
 
 export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, initialCustomer, prefillData }: CreateInvoiceModalProps) {
   const [type, setType] = useState<"Honorarnote" | "Rechnung">(
@@ -273,9 +276,12 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
                 </div>
                 <div>
                   {idx === 0 && <label className="label">Einheit</label>}
-                  <select className="select" value={item.unit} onChange={(e) => updateItem(idx, "unit", e.target.value)}>
-                    {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                  </select>
+                  <SelectPicker
+                    value={item.unit}
+                    onChange={(v) => updateItem(idx, "unit", v)}
+                    options={UNIT_OPTIONS}
+                    style={{ marginBottom: 0 }}
+                  />
                 </div>
                 <div>
                   {idx === 0 && <label className="label">Preis/Einh.</label>}
@@ -311,9 +317,12 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
                   </div>
                   <div className="field-group">
                     <label className="label">Einheit</label>
-                    <select className="select" value={item.unit} onChange={(e) => updateItem(idx, "unit", e.target.value)}>
-                      {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                    <SelectPicker
+                      value={item.unit}
+                      onChange={(v) => updateItem(idx, "unit", v)}
+                      options={UNIT_OPTIONS}
+                      style={{ marginBottom: 0 }}
+                    />
                   </div>
                 </div>
                 <div className="field-group">
@@ -327,11 +336,14 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
           <button className="btn btn-sm" onClick={addItem} style={{ marginTop: "0.5rem" }}>+ Position</button>
 
           {/* Tax */}
-          <div className="field-group" style={{ marginTop: "1rem" }}>
+          <div className="field-group" style={{ marginTop: "1rem", position: "relative" }}>
             <label className="label">Steuerstatus</label>
-            <select className="select" value={taxMode} onChange={(e) => setTaxMode(e.target.value)}>
-              {TAX_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
+            <SelectPicker
+              value={taxMode}
+              onChange={setTaxMode}
+              options={TAX_MODE_OPTIONS}
+              style={{ marginBottom: 0 }}
+            />
           </div>
 
           {/* Summary */}

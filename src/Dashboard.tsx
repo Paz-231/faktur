@@ -8,6 +8,7 @@ import { AuftragDetail } from "./AuftragDetail";
 import { CustomerDetail } from "./CustomerDetail";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import { SettingsPage } from "./SettingsPage";
+import { SelectPicker } from "./SelectPicker";
 import { money, parseAppDate } from "./lib";
 
 interface DashboardProps {
@@ -747,18 +748,23 @@ function ManualIncomingModal({ userId, sessionToken, onClose }: { userId: any; s
             <input className="input" value={form.issuerName} onChange={(e) => set("issuerName", e.target.value)} placeholder="Lieferant GmbH" />
           </div>
           <div className="field-row">
-            <div className="field-group">
+            <div className="field-group" style={{ position: "relative" }}>
               <label className="label">Kategorie</label>
-              <select className="select" value={form.category} onChange={(e) => set("category", e.target.value)}>
-                <option value="">— wählen —</option>
-                <option>Software / SaaS</option>
-                <option>Büro / Material</option>
-                <option>Reisekosten</option>
-                <option>Telefon / Internet</option>
-                <option>Miete</option>
-                <option>Fremdleistungen</option>
-                <option>Sonstiges</option>
-              </select>
+              <SelectPicker
+                value={form.category}
+                onChange={(v) => set("category", v)}
+                options={[
+                  { value: "", label: "— wählen —" },
+                  { value: "Software / SaaS", label: "Software / SaaS" },
+                  { value: "Büro / Material", label: "Büro / Material" },
+                  { value: "Reisekosten", label: "Reisekosten" },
+                  { value: "Telefon / Internet", label: "Telefon / Internet" },
+                  { value: "Miete", label: "Miete" },
+                  { value: "Fremdleistungen", label: "Fremdleistungen" },
+                  { value: "Sonstiges", label: "Sonstiges" },
+                ]}
+                style={{ marginBottom: 0 }}
+              />
             </div>
             <div className="field-group">
               <label className="label">Beschreibung (optional)</label>
@@ -770,16 +776,21 @@ function ManualIncomingModal({ userId, sessionToken, onClose }: { userId: any; s
               <label className="label">Netto (€)</label>
               <input className="input" type="text" inputMode="decimal" value={form.netAmount} onChange={(e) => set("netAmount", e.target.value)} placeholder="100,00" />
             </div>
-            <div className="field-group">
+            <div className="field-group" style={{ position: "relative" }}>
               <label className="label">USt-Satz (%)</label>
-              <select className="select" value={form.taxRate} onChange={(e) => set("taxRate", e.target.value)}>
-                <option value="0">0%</option>
-                <option value="7">7% (DE ermäßigt)</option>
-                <option value="10">10% (AT ermäßigt)</option>
-                <option value="13">13% (AT)</option>
-                <option value="19">19% (DE)</option>
-                <option value="20">20% (AT)</option>
-              </select>
+              <SelectPicker
+                value={form.taxRate}
+                onChange={(v) => set("taxRate", v)}
+                options={[
+                  { value: "0", label: "0%" },
+                  { value: "7", label: "7% (DE ermäßigt)" },
+                  { value: "10", label: "10% (AT ermäßigt)" },
+                  { value: "13", label: "13% (AT)" },
+                  { value: "19", label: "19% (DE)" },
+                  { value: "20", label: "20% (AT)" },
+                ]}
+                style={{ marginBottom: 0 }}
+              />
             </div>
           </div>
           <div style={{ padding: "0.75rem 1rem", background: "var(--surface-2)", border: "1px solid var(--border)", display: "flex", justifyContent: "space-between", fontSize: "0.8125rem" }}>
@@ -1048,13 +1059,19 @@ function ReportsPage({ userId, sessionToken }: { userId: any; sessionToken: stri
     <div className="slide-up">
       <div className="page-header">
         <h1 className="page-title">Berichte</h1>
-        <div className="page-actions">
-          <select className="select" style={{ width: "auto" }} value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-            {monthNames.map((m, i) => <option key={m} value={i}>{m}</option>)}
-          </select>
-          <select className="select" style={{ width: "auto" }} value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {[year - 2, year - 1, year, year + 1].filter((v, i, a) => a.indexOf(v) === i).map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+        <div className="page-actions" style={{ position: "relative" }}>
+          <SelectPicker
+            value={String(month)}
+            onChange={(v) => setMonth(Number(v))}
+            options={monthNames.map((m, i) => ({ value: String(i), label: m }))}
+            style={{ marginBottom: 0, width: "auto" }}
+          />
+          <SelectPicker
+            value={String(year)}
+            onChange={(v) => setYear(Number(v))}
+            options={[year - 2, year - 1, year, year + 1].filter((v, i, a) => a.indexOf(v) === i).map((y) => ({ value: String(y), label: String(y) }))}
+            style={{ marginBottom: 0, width: "auto" }}
+          />
         </div>
       </div>
 

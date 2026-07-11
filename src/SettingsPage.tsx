@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { convexSiteUrl } from "./lib";
+import { SelectPicker } from "./SelectPicker";
 
 interface SettingsPageProps {
   auth: { userId: string; email: string; name: string; plan: string; sessionToken: string };
@@ -13,6 +14,21 @@ const TAX_MODES = [
   { value: "ust_ermaessigt", label: "Ermäßigt (AT 10% / DE 7%)" },
   { value: "reverse_charge", label: "Reverse Charge (0%)" },
   { value: "befreit", label: "Befreit (0%)" },
+];
+const TAX_MODE_OPTIONS = TAX_MODES.map((m) => ({ value: m.value, label: m.label }));
+const COUNTRY_OPTIONS = [
+  { value: "AT", label: "Österreich" },
+  { value: "DE", label: "Deutschland" },
+  { value: "CH", label: "Schweiz" },
+];
+const LEGAL_FORM_OPTIONS = [
+  { value: "einzelunternehmen", label: "Einzelunternehmen" },
+  { value: "gbr", label: "GbR" },
+  { value: "gmbh", label: "GmbH" },
+  { value: "ug", label: "UG" },
+  { value: "ag", label: "AG" },
+  { value: "freelancer", label: "Freelancer" },
+  { value: "verein", label: "Verein" },
 ];
 
 export function SettingsPage({ auth }: SettingsPageProps) {
@@ -234,11 +250,14 @@ export function SettingsPage({ auth }: SettingsPageProps) {
             </div>
           </div>
         </div>
-        <div className="field-group">
-          <label className="label">Standard-Steuerstatus</label>
-          <select className="select" value={defaultTaxMode} onChange={(e) => setDefaultTaxMode(e.target.value)}>
-            {TAX_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
+        <div style={{ position: "relative" }}>
+          <SelectPicker
+            value={defaultTaxMode}
+            onChange={setDefaultTaxMode}
+            options={TAX_MODE_OPTIONS}
+            label="Standard-Steuerstatus"
+            style={{ marginBottom: 0 }}
+          />
         </div>
         <button className="btn btn-primary btn-sm" onClick={handleSaveSettings} disabled={savingSettings} style={{ marginTop: "0.5rem" }}>
           {savingSettings ? "Speichere..." : settingsSaved ? "· Gespeichert" : "Einstellungen speichern"}
@@ -265,13 +284,14 @@ export function SettingsPage({ auth }: SettingsPageProps) {
             <label className="label">PLZ + Ort + Land</label>
             <input className="input" value={profileForm.postalCityCountry} onChange={(e) => setProfileForm({ ...profileForm, postalCityCountry: e.target.value })} placeholder="1010 Wien, Österreich" />
           </div>
-          <div className="field-group">
-            <label className="label">Land</label>
-            <select className="select" value={profileForm.country} onChange={(e) => setProfileForm({ ...profileForm, country: e.target.value })}>
-              <option value="AT">Österreich</option>
-              <option value="DE">Deutschland</option>
-              <option value="CH">Schweiz</option>
-            </select>
+          <div className="field-group" style={{ position: "relative" }}>
+            <SelectPicker
+              value={profileForm.country}
+              onChange={(v) => setProfileForm({ ...profileForm, country: v })}
+              options={COUNTRY_OPTIONS}
+              label="Land"
+              style={{ marginBottom: 0 }}
+            />
           </div>
         </div>
         <div className="field-row">
@@ -279,17 +299,14 @@ export function SettingsPage({ auth }: SettingsPageProps) {
             <label className="label">UID-Nummer</label>
             <input className="input" value={profileForm.currentUid} onChange={(e) => setProfileForm({ ...profileForm, currentUid: e.target.value })} placeholder="ATU12345678" />
           </div>
-          <div className="field-group">
-            <label className="label">Rechtsform</label>
-            <select className="select" value={profileForm.legalForm} onChange={(e) => setProfileForm({ ...profileForm, legalForm: e.target.value })}>
-              <option value="einzelunternehmen">Einzelunternehmen</option>
-              <option value="gbr">GbR</option>
-              <option value="gmbh">GmbH</option>
-              <option value="ug">UG</option>
-              <option value="ag">AG</option>
-              <option value="freelancer">Freelancer</option>
-              <option value="verein">Verein</option>
-            </select>
+          <div className="field-group" style={{ position: "relative" }}>
+            <SelectPicker
+              value={profileForm.legalForm}
+              onChange={(v) => setProfileForm({ ...profileForm, legalForm: v })}
+              options={LEGAL_FORM_OPTIONS}
+              label="Rechtsform"
+              style={{ marginBottom: 0 }}
+            />
           </div>
         </div>
         <div className="field-row">
@@ -340,14 +357,17 @@ export function SettingsPage({ auth }: SettingsPageProps) {
 
             {showTaxChange && (
               <div style={{ padding: "1rem", background: "var(--surface-2)", border: "1px solid var(--border)", marginBottom: "1rem" }}>
-                <div className="field-group">
-                  <label className="label">Neuer Steuerstatus</label>
-                  <select className="select" value={newTaxStatus} onChange={(e) => {
-                    setNewTaxStatus(e.target.value);
-                    setNewTaxRate(taxRateForMode[e.target.value] ?? 0);
-                  }}>
-                    {TAX_MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-                  </select>
+                <div style={{ position: "relative" }}>
+                  <SelectPicker
+                    value={newTaxStatus}
+                    onChange={(v) => {
+                      setNewTaxStatus(v);
+                      setNewTaxRate(taxRateForMode[v] ?? 0);
+                    }}
+                    options={TAX_MODE_OPTIONS}
+                    label="Neuer Steuerstatus"
+                    style={{ marginBottom: 0 }}
+                  />
                 </div>
                 <div className="field-row">
                   <div className="field-group">
