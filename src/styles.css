@@ -1155,3 +1155,13 @@ tbody tr:hover {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ── CreateInvoiceModal: top row stacks on mobile ── */
+@media (max-width: 768px) {
+  .create-invoice-toprow {
+    flex-direction: column !important;
+  }
+  .create-invoice-toprow > .field-group {
+    flex: 1 1 100% !important;
+  }
+}

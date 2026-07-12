@@ -68,6 +68,7 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
   const [recipientUid, setRecipientUid] = useState(initialCustomer?.uid || prefillData?.recipient_uid || "");
 
   const customers = useQuery(api.customers.list, { userId: userId as any, sessionToken }) ?? [];
+  const profile = useQuery(api.profile.get, { userId: userId as any, sessionToken });
 
   const handleSelectCustomer = (id: string) => {
     setCustomerId(id);
@@ -95,6 +96,14 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
   }, [customers, prefillData?.recipient_name]);
 
   const [taxMode, setTaxMode] = useState(prefillData?.tax_mode || "kleinunternehmer");
+
+  // Sync taxMode from business profile when it loads
+  useEffect(() => {
+    if (profile?.currentTaxStatus && !prefillData?.tax_mode) {
+      setTaxMode(profile.currentTaxStatus);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.currentTaxStatus]);
   const [paymentTerms, setPaymentTerms] = useState(prefillData?.payment_terms || "Zahlbar ohne Abzug innerhalb von 7 Tagen nach Rechnungserhalt.");
   const [items, setItems] = useState<InvoiceItem[]>(
     prefillData?.items?.length
@@ -197,8 +206,8 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
             </div>
           )}
 
-          {/* Top row: Type + Date + Payment terms */}
-          <div style={{ display: "flex", gap: "0.75rem", marginBottom: "0.75rem" }}>
+          {/* Top row: Type + Date + Payment terms — stacks on mobile */}
+          <div className="create-invoice-toprow" style={{ display: "flex", gap: "0.75rem", marginBottom: "0.75rem" }}>
             <div className="field-group" style={{ flex: "0 0 auto" }}>
               <label className="label">Typ</label>
               <div style={{ display: "flex", gap: "0.25rem" }}>
@@ -258,15 +267,23 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
                 <input className="input" value={recipientUid} onChange={(e) => setRecipientUid(e.target.value)} placeholder="ATU..." />
               </div>
 
-              {/* Tax mode + Summary below recipient */}
-              <div className="field-group" style={{ position: "relative", marginBottom: "0.5rem" }}>
+              {/* Tax mode — aus Unternehmensprofil übernommen, read-only */}
+              <div className="field-group" style={{ marginBottom: "0.5rem" }}>
                 <label className="label">Steuerrechtlicher Status</label>
-                <SelectPicker
-                  value={taxMode}
-                  onChange={setTaxMode}
-                  options={TAX_MODE_OPTIONS}
-                  style={{ marginBottom: 0 }}
-                />
+                <div style={{
+                  padding: "0.5rem 0.625rem",
+                  background: "var(--surface-2)",
+                  border: "1px solid var(--border)",
+                  fontSize: "0.75rem",
+                  color: "var(--fg-2)",
+                  minHeight: "40px",
+                  display: "flex",
+                  alignItems: "center",
+                  borderRadius: "0.25rem",
+                }}>
+                  {TAX_MODES.find((m) => m.value === taxMode)?.label || taxMode}
+                  <span style={{ marginLeft: "auto", fontSize: "0.625rem", color: "var(--fg-4)" }}>aus Profil</span>
+                </div>
               </div>
 
               <div style={{ padding: "0.625rem", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "0.25rem" }}>
