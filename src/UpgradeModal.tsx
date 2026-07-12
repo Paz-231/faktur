@@ -3,7 +3,7 @@ import { useAction } from "convex/react";
 import { api } from "../convex/_generated/api";
 
 interface UpgradeModalProps {
-  auth: { userId: string; email: string; plan: string };
+  auth: { userId: string; email: string; plan: string; sessionToken: string };
   onClose: () => void;
 }
 
@@ -15,8 +15,7 @@ export function UpgradeModal({ auth, onClose }: UpgradeModalProps) {
     setLoading(plan);
     try {
       const result = await createCheckout({
-        userId: auth.userId as any,
-        email: auth.email,
+        sessionToken: auth.sessionToken,
         plan,
       });
       if (result.checkoutUrl) {

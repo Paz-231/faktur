@@ -3,25 +3,39 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { buildDocumentPdf, PdfDocument, PdfIssuer } from "./pdfBuilder";
+import { getAuthUserId } from "./authHelper";
 
 // ═══════════════════════════════════════════════════════════
 // Dokumente — PDF-Generierung + Versand per Email (Resend)
 // kind: "rechnung" (outgoingInvoices) | "angebot" | "auftrag"
+//
+// Beide Actions verlangen einen gültigen Session-Token und
+// prüfen, dass das Dokument dem eingeloggten User gehört.
 // ═══════════════════════════════════════════════════════════
 
 const kindValidator = v.union(v.literal("rechnung"), v.literal("angebot"), v.literal("auftrag"));
 type Kind = "rechnung" | "angebot" | "auftrag";
 
-// ─── Interne Daten-Beschaffung ───────────────────────────────
+// Versand-Rate-Limit: max. Emails pro Stunde pro User
+const SEND_LIMIT_PER_HOUR = 20;
+
+// ─── Interne Daten-Beschaffung (validiert Session + Besitz) ──
 
 export const getDocData = internalQuery({
-  args: { kind: kindValidator, docId: v.string() },
+  args: { kind: kindValidator, docId: v.string(), sessionToken: v.string() },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+
     let doc: any = null;
     if (args.kind === "rechnung") doc = await ctx.db.get(args.docId as Id<"outgoingInvoices">);
     if (args.kind === "angebot") doc = await ctx.db.get(args.docId as Id<"angebots">);
     if (args.kind === "auftrag") doc = await ctx.db.get(args.docId as Id<"auftrags">);
     if (!doc) return null;
+
+    // Besitzprüfung — fremde Dokumente sind für den Aufrufer unsichtbar
+    if (String(doc.userId) !== String(userId)) {
+      throw new Error("Kein Zugriff auf dieses Dokument");
+    }
 
     const profile = await ctx.db
       .query("businessProfiles")
@@ -35,6 +49,20 @@ export const getDocData = internalQuery({
     }
 
     return { doc, profile, customerEmail };
+  },
+});
+
+// Rate-Limit-Check: gesendete Dokument-Emails der letzten Stunde
+export const countRecentSends = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    const recent = await ctx.db
+      .query("auditLog")
+      .withIndex("userId", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .take(100);
+    return recent.filter((e) => e.action === "document_sent" && e.timestamp > oneHourAgo).length;
   },
 });
 
@@ -128,8 +156,8 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-async function buildPdf(ctx: any, kind: Kind, docId: string) {
-  const data = await ctx.runQuery(internal.documents.getDocData, { kind, docId });
+async function buildPdf(ctx: any, kind: Kind, docId: string, sessionToken: string) {
+  const data = await ctx.runQuery(internal.documents.getDocData, { kind, docId, sessionToken });
   if (!data) throw new Error("Dokument nicht gefunden");
   if (!data.profile) {
     throw new Error("Bitte zuerst das Unternehmensprofil einrichten (Einstellungen) — es liefert die Absenderdaten für das PDF.");
@@ -144,9 +172,9 @@ async function buildPdf(ctx: any, kind: Kind, docId: string) {
 
 // PDF erzeugen + Download-URL zurückgeben
 export const generatePdfUrl = action({
-  args: { kind: kindValidator, docId: v.string() },
+  args: { kind: kindValidator, docId: v.string(), sessionToken: v.string() },
   handler: async (ctx, args): Promise<{ url: string; fileName: string }> => {
-    const { bytes, fileName } = await buildPdf(ctx, args.kind, args.docId);
+    const { bytes, fileName } = await buildPdf(ctx, args.kind, args.docId, args.sessionToken);
 
     const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
     const storageId = await ctx.storage.store(blob);
@@ -163,6 +191,7 @@ export const sendByEmail = action({
   args: {
     kind: kindValidator,
     docId: v.string(),
+    sessionToken: v.string(),
     to: v.string(),
     subject: v.string(),
     message: v.string(),
@@ -176,7 +205,15 @@ export const sendByEmail = action({
       throw new Error("Email-Versand nicht konfiguriert (RESEND_API_KEY fehlt). PDF stattdessen herunterladen und manuell senden.");
     }
 
-    const { data, bytes, fileName } = await buildPdf(ctx, args.kind, args.docId);
+    const { data, bytes, fileName } = await buildPdf(ctx, args.kind, args.docId, args.sessionToken);
+
+    // Rate-Limit: Email-Versand kostet — Missbrauch begrenzen
+    const recentSends = await ctx.runQuery(internal.documents.countRecentSends, {
+      userId: data.doc.userId,
+    });
+    if (recentSends >= SEND_LIMIT_PER_HOUR) {
+      throw new Error(`Versand-Limit erreicht (${SEND_LIMIT_PER_HOUR}/Stunde). Bitte später erneut versuchen.`);
+    }
 
     // PDF auch ablegen (Beleg-Archiv)
     const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });

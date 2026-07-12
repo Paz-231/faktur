@@ -1,5 +1,5 @@
 import { cronJobs } from "convex/server";
-import { api } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════
 // Convex Internal Cron — automated maintenance tasks
@@ -11,14 +11,14 @@ const crons = cronJobs();
 crons.daily(
   "faktox-daily-backup",
   { hourUTC: 3, minuteUTC: 0 },
-  api.backupCron.runDailyBackup,
+  internal.backupCron.runDailyBackup,
 );
 
 // Session cleanup: delete expired sessions every 6 hours
 crons.interval(
   "faktox-session-cleanup",
   { hours: 6 },
-  api.sessions.cleanupExpired,
+  internal.sessions.cleanupExpired,
 );
 
 export default crons;

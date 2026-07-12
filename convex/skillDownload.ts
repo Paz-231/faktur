@@ -1,5 +1,5 @@
 import { httpAction } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { verifyStripeSignature } from "./stripe";
 
 // ═══════════════════════════════════════════════════════════
@@ -87,7 +87,7 @@ export const skillWebhook = httpAction(async (ctx, request) => {
     if (session.metadata?.product === "faktox-invoice-agent-skill") {
       // Generate download token
       const token = crypto.randomUUID();
-      await ctx.runMutation(api.skillDownloadDB.createToken, {
+      await ctx.runMutation(internal.skillDownloadDB.createToken, {
         email,
         token,
         sessionId: session.id,
@@ -141,7 +141,7 @@ export const verifyDownload = httpAction(async (ctx, request) => {
     });
   }
 
-  const result = await ctx.runQuery(api.skillDownloadDB.getByToken, { token });
+  const result = await ctx.runQuery(internal.skillDownloadDB.getByToken, { token });
 
   if (!result) {
     return new Response(JSON.stringify({ error: "Invalid or expired token" }), {

@@ -1,4 +1,4 @@
-import { httpAction, action } from "./_generated/server";
+import { httpAction, internalAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════
@@ -6,7 +6,7 @@ import { api, internal } from "./_generated/api";
 // No ADMIN_KEY needed, no HTTP endpoint, fully internal.
 // ═══════════════════════════════════════════════════════════
 
-export const runDailyBackup = action({
+export const runDailyBackup = internalAction({
   args: {},
   handler: async (ctx): Promise<{
     success: boolean;
@@ -118,7 +118,7 @@ export const triggerBackup = httpAction(async (ctx, request) => {
   }
 
   // Run the same internal action
-  const result = await ctx.runAction(api.backupCron.runDailyBackup, {});
+  const result = await ctx.runAction(internal.backupCron.runDailyBackup, {});
   return new Response(JSON.stringify(result), {
     status: 200,
     headers: { "Content-Type": "application/json" },

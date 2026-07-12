@@ -56,7 +56,7 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
   const handleOpenPdf = async (kind: DocKind, docId: string) => {
     setLoading(`pdf-${docId}`);
     try {
-      const { url } = await generatePdfUrl({ kind, docId });
+      const { url } = await generatePdfUrl({ kind, docId, sessionToken });
       window.open(url, "_blank");
     } catch (err: any) {
       alert(err.message || "PDF konnte nicht erstellt werden");
@@ -519,6 +519,7 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
       {sendTarget && (
         <SendDocumentModal
           target={sendTarget}
+          sessionToken={sessionToken}
           defaultTo={customer?.email || ""}
           senderName={profile?.name || ""}
           onClose={() => setSendTarget(null)}
@@ -538,12 +539,14 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
 // ═══════════════════════════════════════════════════════════
 function SendDocumentModal({
   target,
+  sessionToken,
   defaultTo,
   senderName,
   onClose,
   onSent,
 }: {
   target: SendTarget;
+  sessionToken: string;
   defaultTo: string;
   senderName: string;
   onClose: () => void;
@@ -575,6 +578,7 @@ function SendDocumentModal({
       await sendByEmail({
         kind: target.kind,
         docId: target.docId,
+        sessionToken,
         to: to.trim(),
         subject,
         message,

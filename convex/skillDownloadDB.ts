@@ -1,7 +1,7 @@
-import { query, mutation } from "./_generated/server";
+import { internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
-export const createToken = mutation({
+export const createToken = internalMutation({
   args: {
     email: v.string(),
     token: v.string(),
@@ -17,7 +17,7 @@ export const createToken = mutation({
   },
 });
 
-export const getByToken = query({
+export const getByToken = internalQuery({
   args: { token: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
@@ -27,7 +27,7 @@ export const getByToken = query({
   },
 });
 
-export const markDownloaded = mutation({
+export const markDownloaded = internalMutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {
     const entry = await ctx.db

@@ -185,7 +185,7 @@ export function SettingsPage({ auth }: SettingsPageProps) {
   const handleBillingPortal = async () => {
     setBillingLoading(true);
     try {
-      const result = await createBillingPortal({ userId: auth.userId as any });
+      const result = await createBillingPortal({ sessionToken: auth.sessionToken });
       if (result.portalUrl) {
         window.location.href = result.portalUrl;
       } else {

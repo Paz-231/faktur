@@ -1,80 +1,16 @@
-import { query, mutation } from "./_generated/server";
-import { v } from "convex/values";
+import { internalMutation } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════
-// Session API — Server-side Session-Validierung
+// Session-Wartung
+//
+// Login/Validierung/Logout leben vollständig in auth.ts
+// (completeLogin / validateSession / destroySession).
+// Das frühere öffentliche createSession({ userId }) war eine
+// Account-Übernahme-Lücke und wurde entfernt.
 // ═══════════════════════════════════════════════════════════
 
-// Create session after magic-link verification
-export const createSession = mutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    // Generate secure session token
-    const token = generateToken();
-    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
-
-    const sessionId = await ctx.db.insert("sessions", {
-      userId: args.userId,
-      token,
-      expiresAt,
-      createdAt: Date.now(),
-    });
-
-    await ctx.db.insert("auditLog", {
-      userId: args.userId,
-      action: "session_created",
-      details: "New session created",
-      timestamp: Date.now(),
-    });
-
-    return { token, sessionId, expiresAt };
-  },
-});
-
-// Validate session token — returns userId if valid
-export const validateSession = query({
-  args: { token: v.string() },
-  handler: async (ctx, args) => {
-    const session = await ctx.db
-      .query("sessions")
-      .withIndex("token", (q) => q.eq("token", args.token))
-      .first();
-
-    if (!session) return null;
-
-    // Check expiry
-    if (Date.now() > session.expiresAt) return null;
-
-    // Get user
-    const user = await ctx.db.get(session.userId);
-    if (!user) return null;
-
-    return {
-      userId: session.userId,
-      email: user.email,
-      name: user.name,
-      plan: user.plan,
-    };
-  },
-});
-
-// Destroy session (logout)
-export const destroySession = mutation({
-  args: { token: v.string() },
-  handler: async (ctx, args) => {
-    const session = await ctx.db
-      .query("sessions")
-      .withIndex("token", (q) => q.eq("token", args.token))
-      .first();
-
-    if (session) {
-      await ctx.db.delete(session._id);
-    }
-  },
-});
-
-// Cleanup expired sessions — called by cron every 6 hours
-export const cleanupExpired = mutation({
+// Abgelaufene Sessions löschen — Cron alle 6 Stunden
+export const cleanupExpired = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
@@ -83,20 +19,11 @@ export const cleanupExpired = mutation({
       .filter((q) => q.lt(q.field("expiresAt"), now))
       .take(500);
 
-    let deleted = 0;
     for (const session of expired) {
       await ctx.db.delete(session._id);
-      deleted++;
     }
 
-    console.log(`[Session Cleanup] Deleted ${deleted} expired sessions`);
-    return { deleted };
+    console.log(`[Session Cleanup] Deleted ${expired.length} expired sessions`);
+    return { deleted: expired.length };
   },
 });
-
-// Helper: generate secure random token
-function generateToken(): string {
-  const array = new Uint8Array(48);
-  crypto.getRandomValues(array);
-  return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
-}

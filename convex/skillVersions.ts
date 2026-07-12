@@ -1,6 +1,6 @@
 import { httpAction, mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════
 // Skill Version Management — Upload, List, Download
@@ -97,7 +97,7 @@ export const downloadSkill = httpAction(async (ctx, request) => {
   }
 
   // Verify purchase token
-  const purchase = await ctx.runQuery(api.skillDownloadDB.getByToken, { token });
+  const purchase = await ctx.runQuery(internal.skillDownloadDB.getByToken, { token });
   if (!purchase) {
     return new Response(JSON.stringify({ error: "Invalid token" }), {
       status: 403,
@@ -136,7 +136,7 @@ export const downloadSkill = httpAction(async (ctx, request) => {
   }
 
   // Mark as downloaded
-  await ctx.runMutation(api.skillDownloadDB.markDownloaded, { token });
+  await ctx.runMutation(internal.skillDownloadDB.markDownloaded, { token });
 
   // Redirect to file
   return new Response(null, {
@@ -158,7 +158,7 @@ export const getDownloadInfo = httpAction(async (ctx, request) => {
   }
 
   // Verify token
-  const purchase = await ctx.runQuery(api.skillDownloadDB.getByToken, { token });
+  const purchase = await ctx.runQuery(internal.skillDownloadDB.getByToken, { token });
   if (!purchase) {
     return new Response(JSON.stringify({ error: "Invalid token" }), {
       status: 403,

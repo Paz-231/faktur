@@ -1,4 +1,4 @@
-import { query, mutation, action, internalQuery } from "./_generated/server";
+import { query, mutation, action, internalQuery, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { getAuthUserId } from "./authHelper";
@@ -79,7 +79,7 @@ export const createIncomingFromFile = mutation({
     });
 
     // Schedule AI scan
-    await ctx.scheduler.runAfter(0, api.fileUpload.scanInvoiceFile, {
+    await ctx.scheduler.runAfter(0, internal.fileUpload.scanInvoiceFile, {
       incomingId: id,
       fileStorageId: args.fileStorageId,
       userId,
@@ -97,7 +97,7 @@ export const createIncomingFromFile = mutation({
 });
 
 // Step 4: AI Scan — extrahiert Rechnungsdaten aus der hochgeladenen Datei
-export const scanInvoiceFile = action({
+export const scanInvoiceFile = internalAction({
   args: {
     incomingId: v.id("incomingInvoices"),
     fileStorageId: v.id("_storage"),
@@ -136,7 +136,7 @@ export const scanInvoiceFile = action({
 
     if (!apiKey) {
       console.log("[DEV] No API key — skipping scan");
-      await ctx.runMutation(api.fileUpload.markScanFailed, {
+      await ctx.runMutation(internal.fileUpload.markScanFailed, {
         incomingId: args.incomingId,
         userId: args.userId,
       });
@@ -171,7 +171,7 @@ export const scanInvoiceFile = action({
 
     if (!visionResponse.ok) {
       console.error("Vision API error:", visionResponse.status);
-      await ctx.runMutation(api.fileUpload.markScanFailed, {
+      await ctx.runMutation(internal.fileUpload.markScanFailed, {
         incomingId: args.incomingId,
         userId: args.userId,
       });
@@ -187,7 +187,7 @@ export const scanInvoiceFile = action({
       extracted = JSON.parse(jsonText);
     } catch (err) {
       console.error("Failed to parse vision result:", err);
-      await ctx.runMutation(api.fileUpload.markScanFailed, {
+      await ctx.runMutation(internal.fileUpload.markScanFailed, {
         incomingId: args.incomingId,
         userId: args.userId,
       });
@@ -201,7 +201,7 @@ export const scanInvoiceFile = action({
       return Number.isFinite(n) ? n : 0;
     };
 
-    await ctx.runMutation(api.fileUpload.applyScanResult, {
+    await ctx.runMutation(internal.fileUpload.applyScanResult, {
       incomingId: args.incomingId,
       userId: args.userId,
       data: {
@@ -438,7 +438,7 @@ export const parseVoiceToInvoice = action({
 });
 
 // Mark scan as failed
-export const markScanFailed = mutation({
+export const markScanFailed = internalMutation({
   args: {
     incomingId: v.id("incomingInvoices"),
     userId: v.id("users"),
@@ -464,7 +464,7 @@ export const markScanFailed = mutation({
 });
 
 // Apply scan result to incoming invoice
-export const applyScanResult = mutation({
+export const applyScanResult = internalMutation({
   args: {
     incomingId: v.id("incomingInvoices"),
     userId: v.id("users"),

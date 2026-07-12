@@ -1,6 +1,7 @@
 import { query, mutation, action, internalAction, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { getAuthUser } from "./authHelper";
 
 // ═══════════════════════════════════════════════════════════
 // Auth API — Magic-Link Authentication
@@ -202,24 +203,6 @@ export const destroySession = mutation({
   },
 });
 
-// Get current user by session (for dashboard auth check)
-export const getCurrentUser = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    if (!user) return null;
-    return {
-      _id: user._id,
-      email: user.email,
-      name: user.name,
-      plan: user.plan,
-      planStatus: user.planStatus,
-      createdAt: user.createdAt,
-      lastLoginAt: user.lastLoginAt,
-    };
-  },
-});
-
 // Internal: Send magic link email via Resend (action — needs network access)
 export const sendMagicLinkEmail = internalAction({
   args: {
@@ -280,20 +263,6 @@ export const sendMagicLinkEmail = internalAction({
   },
 });
 
-// Update user profile
-export const updateProfile = mutation({
-  args: {
-    userId: v.id("users"),
-    name: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const updates: any = {};
-    if (args.name) updates.name = args.name;
-    await ctx.db.patch(args.userId, updates);
-    return { success: true };
-  },
-});
-
 // ─── Stripe Support Queries/Mutations ──────────────────────
 
 // Internal: Find user by email (for Stripe webhook — NOT public)
@@ -313,6 +282,15 @@ export const getUserById = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.userId);
+  },
+});
+
+// Internal: Session-Token -> vollständiger User (für Actions, die db nicht direkt sehen)
+export const getUserBySession = internalQuery({
+  args: { sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx, args.sessionToken);
+    return user;
   },
 });
 
@@ -358,11 +336,14 @@ export const updateSubscription = internalMutation({
 // Create Stripe Checkout Session (action — network call, returns URL for redirect)
 export const createCheckoutSession = action({
   args: {
-    userId: v.id("users"),
-    email: v.string(),
+    sessionToken: v.string(),
     plan: v.string(), // "starter" | "pro"
   },
   handler: async (ctx, args): Promise<{ checkoutUrl?: string | null; error?: string }> => {
+    // Identität kommt aus der Session — nie aus Client-Argumenten
+    const user = await ctx.runQuery(internal.auth.getUserBySession, { sessionToken: args.sessionToken });
+    if (!user) return { error: "Nicht eingeloggt" };
+
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeKey) {
       return { error: "Stripe not configured" };
@@ -387,14 +368,14 @@ export const createCheckoutSession = action({
       },
       body: new URLSearchParams({
         mode: "subscription",
-        customer_email: args.email,
+        customer_email: user.email,
         "payment_method_types[0]": "card",
         "line_items[0][price]": priceId,
         "line_items[0][quantity]": "1",
         success_url: `${baseUrl}?payment=success`,
         cancel_url: `${baseUrl}?payment=canceled`,
-        "metadata[userId]": args.userId,
-        "metadata[email]": args.email,
+        "metadata[userId]": user._id,
+        "metadata[email]": user.email,
         "metadata[plan]": args.plan,
       }),
     });
@@ -412,11 +393,14 @@ export const createCheckoutSession = action({
 // Manage subscription (billing portal)
 export const createBillingPortal = action({
   args: {
-    userId: v.id("users"),
+    sessionToken: v.string(),
   },
   handler: async (ctx, args): Promise<{ portalUrl?: string | null; error?: string }> => {
-    const user = await ctx.runQuery(internal.auth.getUserById, { userId: args.userId });
-    if (!user || !user.stripeCustomerId) {
+    const user = await ctx.runQuery(internal.auth.getUserBySession, { sessionToken: args.sessionToken });
+    if (!user) {
+      return { error: "Nicht eingeloggt" };
+    }
+    if (!user.stripeCustomerId) {
       return { error: "No Stripe customer found" };
     }
 
