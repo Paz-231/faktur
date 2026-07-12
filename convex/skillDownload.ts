@@ -19,7 +19,7 @@ export const createSkillCheckout = httpAction(async (ctx, request) => {
     });
   }
 
-  const frontendUrl = process.env.FRONTEND_URL || "https://faktox.netlify.app";
+  const frontendUrl = process.env.FRONTEND_URL || "https://faktox.online";
 
   // Create Stripe Checkout Session (one-time payment)
   const resp = await fetch("https://api.stripe.com/v1/checkout/sessions", {
@@ -94,7 +94,7 @@ export const skillWebhook = httpAction(async (ctx, request) => {
       });
 
       // Send download email
-      const frontendUrl = process.env.FRONTEND_URL || "https://faktox.netlify.app";
+      const frontendUrl = process.env.FRONTEND_URL || "https://faktox.online";
       const resendKey = process.env.RESEND_API_KEY;
       if (resendKey) {
         await fetch("https://api.resend.com/emails", {
