@@ -431,7 +431,7 @@ export function SettingsPage({ auth }: SettingsPageProps) {
             <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>Aktueller Plan: {auth.plan}</div>
             <div style={{ fontSize: "0.75rem", color: "var(--fg-3)" }}>
               {auth.plan === "free" && "3 Rechnungen/Monat — upgrade für unlimited"}
-              {auth.plan === "starter" && "29€/Monat — unlimited Rechnungen + AI Scan"}
+              {auth.plan === "starter" && "29€/Monat — unlimited Rechnungen + Mahnwesen"}
               {auth.plan === "pro" && "49€/Monat — alle Features"}
             </div>
           </div>

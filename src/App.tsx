@@ -522,12 +522,12 @@ export default function App() {
               },
               {
                 name: "Starter", price: "29€", period: "/Monat", sub: "Für Solo-Selbständige",
-                features: ["Unbegrenzte Rechnungen", "Unbegrenzte Aufträge + Angebote", "Foto/PDF Upload + AI Vision-Scan", "Mahnwesen (3 Stufen)", "Eingangsrechnungen unbegrenzt", "Buchhaltungs-Report (monatlich)"],
+                features: ["Unbegrenzte Rechnungen", "Unbegrenzte Aufträge + Angebote", "Mahnwesen (3 Stufen)", "Eingangsrechnungen unbegrenzt", "Buchhaltungs-Report (monatlich)", "Storno-Logik"],
                 featured: true,
               },
               {
                 name: "Pro", price: "49€", period: "/Monat", sub: "Für Anspruchsvolle",
-                features: ["Alles aus Starter", "Email-Abholung (IMAP)", "EÜR (§4 Abs3 EStG)", "USt-Voranmeldung-Daten", "DATEV-Export", "Jahresbericht", "Mehrere Unternehmen"],
+                features: ["Alles aus Starter", "AI Foto-Scan (Vision API)", "AI Diktier- & Texteingabe", "Email-Abholung (IMAP)", "EÜR (§4 Abs3 EStG)", "USt-Voranmeldung-Daten", "DATEV-Export", "Jahresbericht", "Mehrere Unternehmen"],
                 featured: false,
               },
             ].map((plan, i) => (
@@ -641,7 +641,7 @@ export default function App() {
             {[
               { q: "Ist Faktox wirklich kostenlos? Ja. Der Free-Plan mit 3 Rechnungen und 3 Aufträgen pro Monat ist dauerhaft kostenlos — ohne Kreditkarte. Erst wenn du mehr brauchst, lohnt sich Starter (29€/Monat)." },
               { q: "Sind die Rechnungen rechtskonform für Österreich und Deutschland?", a: "Ja. Faktox erstellt AT-Honorarnoten mit §6 Abs1 Z27 UStG-Hinweis und DE-Rechnungen mit §19 UStG. Kleinunternehmer-Regelung, Reverse Charge und Steuerstatus-Wechsel werden automatisch korrekt abgebildet. Faktox ersetzt keine Steuerberatung." },
-              { q: "Wie funktioniert der Foto-Scan?", a: "Du lädst ein Foto oder PDF einer Rechnung hoch — die KI extrahiert Lieferant, Beträge, Steuersatz und Kategorie automatisch und legt die Eingangsrechnung sauber ab. Verfügbar ab dem Starter-Plan." },
+              { q: "Wie funktioniert der Foto-Scan?", a: "Du lädst ein Foto oder PDF einer Rechnung hoch — die KI extrahiert Lieferant, Beträge, Steuersatz und Kategorie automatisch und legt die Eingangsrechnung sauber ab. Verfügbar ab dem Pro-Plan." },
               { q: "Was passiert mit meinen Daten?", a: "Deine Daten liegen verschlüsselt auf EU-Servern (Convex, Region eu-west-1). Tägliche automatische Backups, 90 Tage Aufbewahrung, jederzeit vollständiger JSON-Export mit einem Klick. DSGVO-konform." },
               { q: "Kann ich jederzeit kündigen?", a: "Ja. Monatlich kündbar, direkt im Stripe-Portal unter Einstellungen. Deine Daten bleiben erhalten und exportierbar — auch im Free-Plan." },
               { q: "Brauche ich Buchhaltungswissen?", a: "Nein. Faktox nimmt dir Nummernkreis, Steuertexte, Mahnfristen und Reports ab. Für den Jahresabschluss exportierst du einfach den Steuerberater-fertigen Report (EÜR, UStVA, DATEV)." },

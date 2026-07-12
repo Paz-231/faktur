@@ -39,10 +39,10 @@ export function UpgradeModal({ auth, onClose }: UpgradeModalProps) {
       features: [
         "Unbegrenzte Rechnungen",
         "Unbegrenzte Aufträge + Angebote",
-        "Foto/PDF Upload + AI Vision-Scan",
         "Mahnwesen (3 Stufen)",
         "Eingangsrechnungen unbegrenzt",
         "Buchhaltungs-Report (monatlich)",
+        "Storno-Logik",
       ],
       featured: true,
     },
@@ -52,6 +52,8 @@ export function UpgradeModal({ auth, onClose }: UpgradeModalProps) {
       price: "49€",
       features: [
         "Alles aus Starter",
+        "AI Foto-Scan (Vision API)",
+        "AI Diktier- & Texteingabe",
         "Email-Abholung (IMAP)",
         "EÜR (§4 Abs3 EStG)",
         "USt-Voranmeldung-Daten",
