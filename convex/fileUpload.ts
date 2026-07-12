@@ -24,8 +24,11 @@ const _authCheck = internalQuery({
   },
 });
 
-async function actionAuth(ctx: any, sessionToken: string) {
-  return await ctx.runQuery(internal.fileUpload._authCheck, { sessionToken });
+async function actionAuth(ctx: any, sessionToken: string): Promise<string | null> {
+  // Use the public validateSession query — returns null instead of throwing
+  const user = await ctx.runQuery(api.auth.validateSession, { token: sessionToken });
+  if (!user) return null;
+  return user.userId;
 }
 
 // Step 1: Generate upload URL
@@ -234,6 +237,7 @@ export const scanOutgoingFile = action({
   },
   handler: async (ctx, args) => {
     const userId = await actionAuth(ctx, args.sessionToken);
+    if (!userId) return { error: "Sitzung abgelaufen — bitte erneut einloggen" };
 
     const fileUrl = await ctx.storage.getUrl(args.fileStorageId);
     if (!fileUrl) return { error: "Datei nicht gefunden" };
@@ -348,6 +352,7 @@ export const parseVoiceToInvoice = action({
   },
   handler: async (ctx, args) => {
     const userId = await actionAuth(ctx, args.sessionToken);
+    if (!userId) return { error: "Sitzung abgelaufen — bitte erneut einloggen" };
 
     const apiKey = process.env.BUILT_IN_FORGE_API_KEY || process.env.OPENROUTER_API_KEY;
     const apiUrl = process.env.BUILT_IN_FORGE_API_URL || "https://openrouter.ai/api";
