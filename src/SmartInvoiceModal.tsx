@@ -91,6 +91,14 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
   useEffect(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     setVoiceSupported(!!SR);
+    // Cleanup: stop mic when modal unmounts
+    return () => {
+      shouldRecordRef.current = false;
+      if (recognitionRef.current) {
+        try { recognitionRef.current.abort(); } catch {}
+        recognitionRef.current = null;
+      }
+    };
   }, []);
 
   // ── Photo scan ──
@@ -202,6 +210,7 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
       recognition.onend = () => {
         // Chrome stops after each phrase (continuous=false).
         // Auto-restart with a NEW recognition instance if user still recording.
+        // Double-check shouldRecordRef to prevent restart after stop/abort.
         if (shouldRecordRef.current) {
           const newRec = createRecognition();
           recognitionRef.current = newRec;
@@ -211,6 +220,9 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
             // Will retry on next cycle
           }
         } else {
+          // Ensure mic is released
+          try { recognition.abort(); } catch {}
+          recognitionRef.current = null;
           setRecording(false);
         }
       };
@@ -234,7 +246,12 @@ export function SmartInvoiceModal({ userId, sessionToken, onClose, onCreated, in
 
   const stopRecording = () => {
     shouldRecordRef.current = false;
-    recognitionRef.current?.stop();
+    // abort() instead of stop() — stop() fires onend which may trigger restart
+    // abort() cancels immediately and fires onerror(aborted) which we ignore
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch {}
+      recognitionRef.current = null;
+    }
     setRecording(false);
   };
 
