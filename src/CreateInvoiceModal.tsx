@@ -17,9 +17,7 @@ interface CreateInvoiceModalProps {
   sessionToken: string;
   onClose: () => void;
   onCreated?: () => void;
-  /** Vorausgewählter Kunde (z.B. aus der Kundendetailseite) */
   initialCustomer?: InitialCustomer;
-  /** Vorausgefüllte Daten aus Foto/Voice-Scan */
   prefillData?: {
     recipient_name: string;
     recipient_street: string;
@@ -41,7 +39,7 @@ interface InvoiceItem {
   qty: number;
   unit: string;
   unitPrice: number;
-  taxRate: number; // pro-Position Steuersatz
+  taxRate: number;
 }
 
 const TAX_MODES = [
@@ -68,12 +66,11 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
   const [recipientCity, setRecipientCity] = useState(initialCustomer?.city || prefillData?.recipient_city || "");
   const [recipientUid, setRecipientUid] = useState(initialCustomer?.uid || prefillData?.recipient_uid || "");
 
-  // Kundenstamm für die Schnellauswahl
   const customers = useQuery(api.customers.list, { userId: userId as any, sessionToken }) ?? [];
 
   const handleSelectCustomer = (id: string) => {
     setCustomerId(id);
-    if (!id) return; // "manuell eingeben" — Felder unangetastet lassen
+    if (!id) return;
     const c = customers.find((c: any) => c._id === id);
     if (c) {
       setRecipientName(c.name || "");
@@ -83,8 +80,6 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
     }
   };
 
-  // Auto-match: Wenn prefillData einen Empfängernamen hat und Kunden geladen sind,
-  // prüfe ob ein Kunde mit diesem Namen existiert und wähle ihn automatisch aus.
   useEffect(() => {
     if (!prefillData?.recipient_name || !customers.length || customerId) return;
     const match = customers.find((c: any) => {
@@ -97,6 +92,7 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customers, prefillData?.recipient_name]);
+
   const [taxMode, setTaxMode] = useState(prefillData?.tax_mode || "kleinunternehmer");
   const [paymentTerms, setPaymentTerms] = useState(prefillData?.payment_terms || "Zahlbar ohne Abzug innerhalb von 7 Tagen nach Rechnungserhalt.");
   const [items, setItems] = useState<InvoiceItem[]>(
@@ -124,7 +120,6 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
     setItems(updated);
   };
 
-  // Berechnung mit pro-Position Steuersätzen
   const itemsForCalc = items.map((i) => ({ total: i.qty * i.unitPrice, taxRate: i.taxRate }));
   const totals = computeTotals(itemsForCalc);
   const taxBreakdown = computeTaxBreakdown(itemsForCalc);
@@ -135,24 +130,18 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
   const handleCreate = async () => {
     setError("");
     setCreating(true);
-
     try {
-      // Validate
       if (!recipientName || !recipientStreet || !recipientCity) {
         throw new Error("Empfängerdaten unvollständig");
       }
       if (items.some((i) => !i.description || i.qty <= 0 || i.unitPrice <= 0)) {
         throw new Error("Positionen unvollständig — Beschreibung, Menge und Preis erforderlich");
       }
-
-      // Tax notes
       const taxNotes: Record<string, string> = {
         kleinunternehmer: "Gemäß § 6 Abs. 1 Z 27 UStG von der Umsatzsteuer befreit.",
         reverse_charge: "Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge).",
         befreit: "Von der Umsatzsteuer befreit.",
       };
-
-      // Build items with positions + per-item tax rate
       const invoiceItems = items.map((item, idx) => ({
         pos: idx + 1,
         description: item.description,
@@ -162,11 +151,7 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
         total: item.qty * item.unitPrice,
         taxRate: item.taxRate,
       }));
-
-      // Step 1: Create Auftrag (draft status — no rechnung yet).
-      // Nummer wird serverseitig atomar aus dem Nummernkreis vergeben.
       setCreatedStep("Auftrag wird erstellt...");
-
       await createAuftrag({
         userId: userId as any,
         sessionToken,
@@ -186,12 +171,6 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
         items: invoiceItems,
         paymentTerms,
       });
-
-      // Auftrag created as draft. User can:
-      // - Confirm it (from Auftrag detail) » if auto mode, rechnung is generated
-      // - Create Angebot from it (from Auftrag detail)
-      // - Create Rechnung manually (from Auftrag detail)
-
       onCreated?.();
       onClose();
     } catch (err: any) {
@@ -205,35 +184,30 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "min(820px, 100%)", maxHeight: "92vh", display: "flex", flexDirection: "column" }}>
-        <div className="modal-header">
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "min(960px, 100%)", maxHeight: "94vh", display: "flex", flexDirection: "column" }}>
+        <div className="modal-header" style={{ flexShrink: 0 }}>
           <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Neuer Auftrag</h2>
           <button className="btn btn-ghost btn-icon" onClick={onClose}>×</button>
         </div>
 
-        <div className="modal-body" style={{ flex: 1, overflowY: "auto", padding: "1rem 1.25rem" }}>
+        <div className="modal-body" style={{ flex: 1, overflowY: "auto", padding: "0.875rem 1.25rem" }}>
           {prefillData && (
-            <div style={{ padding: "0.5rem 0.75rem", background: "var(--surface-2)", border: "1px solid var(--accent)", marginBottom: "0.75rem", fontSize: "0.75rem", color: "var(--accent)", borderRadius: "0.25rem" }}>
+            <div style={{ padding: "0.375rem 0.625rem", background: "var(--surface-2)", border: "1px solid var(--accent)", marginBottom: "0.5rem", fontSize: "0.6875rem", color: "var(--accent)", borderRadius: "0.25rem" }}>
               KI-vorausgefüllt — bitte alle Daten prüfen und bei Bedarf anpassen.
             </div>
           )}
 
-          {/* Flow Info */}
-          <div style={{ padding: "0.5rem 0.75rem", background: "var(--surface-2)", border: "1px solid var(--border)", marginBottom: "0.75rem", fontSize: "0.6875rem", color: "var(--fg-3)", borderRadius: "0.25rem" }}>
-            Der Auftrag ist die Basis — die Rechnung erstellst du danach mit einem Klick aus der Auftrags-Detailansicht (lückenloser Nummernkreis inklusive).
-          </div>
-
-          {/* Type + Date in einer Zeile */}
-          <div style={{ display: "flex", gap: "1rem", marginBottom: "0.75rem" }}>
+          {/* Top row: Type + Date + Payment terms */}
+          <div style={{ display: "flex", gap: "0.75rem", marginBottom: "0.75rem" }}>
             <div className="field-group" style={{ flex: "0 0 auto" }}>
               <label className="label">Typ</label>
-              <div style={{ display: "flex", gap: "0.375rem" }}>
+              <div style={{ display: "flex", gap: "0.25rem" }}>
                 {(["Rechnung", "Honorarnote"] as const).map((t) => (
                   <button
                     key={t}
                     className={`btn btn-sm ${type === t ? "btn-primary" : ""}`}
                     onClick={() => setType(t)}
-                    style={{ padding: "0.5rem 0.875rem", justifyContent: "center" }}
+                    style={{ padding: "0.4375rem 0.75rem", justifyContent: "center" }}
                   >
                     {t}
                   </button>
@@ -244,194 +218,188 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
               <label className="label">Auftragsdatum</label>
               <input className="input" value={date} onChange={(e) => setDate(e.target.value)} placeholder="DD.MM.YYYY" />
             </div>
+            <div className="field-group" style={{ flex: 1.5 }}>
+              <label className="label">Zahlungsbedingungen</label>
+              <input className="input" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
+            </div>
           </div>
 
-          {/* Recipient */}
-          <h4 style={{ marginTop: "0.5rem", marginBottom: "0.5rem", fontSize: "0.875rem" }}>Empfänger</h4>
+          {/* Two-column layout: Left = Recipient, Right = Items */}
+          <div className="create-invoice-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: "1rem" }}>
+            {/* ── LEFT: Recipient + Tax ── */}
+            <div>
+              <h4 style={{ margin: "0 0 0.375rem 0", fontSize: "0.8125rem" }}>Empfänger</h4>
 
-          {/* Bestehenden Kunden wählen — spart die Doppeleingabe */}
-          {customers.length > 0 && (
-            <>
-              <CustomerPicker customers={customers} value={customerId} onChange={handleSelectCustomer} />
-              {customerId && (
-                <div style={{ fontSize: "0.6875rem", color: "var(--success)", marginTop: "0.25rem", marginBottom: "0.5rem" }}>
-                  Kundendaten übernommen — der Auftrag wird mit diesem Kunden verknüpft.
-                </div>
+              {customers.length > 0 && (
+                <>
+                  <CustomerPicker customers={customers} value={customerId} onChange={handleSelectCustomer} />
+                  {customerId && (
+                    <div style={{ fontSize: "0.625rem", color: "var(--success)", marginTop: "0.1875rem", marginBottom: "0.375rem" }}>
+                      Kundendaten übernommen
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          )}
 
-          <div style={{ display: "flex", gap: "1rem", marginBottom: "0.5rem" }}>
-            <div className="field-group" style={{ flex: 1 }}>
-              <label className="label">Name / Firma</label>
-              <input className="input" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} placeholder="Kunde GmbH" />
-            </div>
-            <div className="field-group" style={{ flex: 1 }}>
-              <label className="label">UID (optional)</label>
-              <input className="input" value={recipientUid} onChange={(e) => setRecipientUid(e.target.value)} placeholder="ATU..." />
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: "1rem", marginBottom: "0.5rem" }}>
-            <div className="field-group" style={{ flex: 1 }}>
-              <label className="label">Straße</label>
-              <input className="input" value={recipientStreet} onChange={(e) => setRecipientStreet(e.target.value)} placeholder="Musterstraße 1" />
-            </div>
-            <div className="field-group" style={{ flex: 1 }}>
-              <label className="label">PLZ + Ort + Land</label>
-              <input className="input" value={recipientCity} onChange={(e) => setRecipientCity(e.target.value)} placeholder="1010 Wien, Österreich" />
-            </div>
-          </div>
-
-          {/* Items */}
-          <h4 className="responsive-hide-label" style={{ marginTop: "0.5rem", marginBottom: "0.5rem", fontSize: "0.875rem" }}>Positionen</h4>
-
-          {/* Desktop: Grid Table */}
-          <div className="item-row-desktop">
-            {items.map((item, idx) => (
-              <div key={idx} className="item-row" style={{ display: "grid", gridTemplateColumns: "2fr 50px 1fr 90px 80px 100px 28px", gap: "0.5rem", marginBottom: "0.5rem", alignItems: "end" }}>
-                <div>
-                  {idx === 0 && <label className="label">Beschreibung</label>}
-                  <input className="input" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Beratungsleistung" />
-                </div>
-                <div>
-                  {idx === 0 && <label className="label">Menge</label>}
-                  <input className="input" type="number" min="1" value={item.qty} onChange={(e) => updateItem(idx, "qty", e.target.value)} />
-                </div>
-                <div>
-                  {idx === 0 && <label className="label">Einheit</label>}
-                  <SelectPicker
-                    value={item.unit}
-                    onChange={(v) => updateItem(idx, "unit", v)}
-                    options={UNIT_OPTIONS}
-                    style={{ marginBottom: 0 }}
-                  />
-                </div>
-                <div style={{ position: "relative" }}>
-                  {idx === 0 && <label className="label">USt-Satz</label>}
-                  <SelectPicker
-                    value={String(item.taxRate)}
-                    onChange={(v) => updateItem(idx, "taxRate" as any, Number(v))}
-                    options={TAX_RATE_SELECT_OPTIONS}
-                    style={{ marginBottom: 0 }}
-                  />
-                </div>
-                <div>
-                  {idx === 0 && <label className="label">Preis/Einh.</label>}
-                  <input className="input" type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", e.target.value)} />
-                </div>
-                <div>
-                  {idx === 0 && <label className="label">Gesamt</label>}
-                  <div style={{ padding: "0.625rem 0.75rem", fontSize: "0.8125rem", fontWeight: 600, color: "var(--fg)", minHeight: "44px", display: "flex", alignItems: "center" }}>
-                    {money(item.qty * item.unitPrice)}
-                  </div>
-                </div>
-                <div>
-                  {items.length > 1 && (
-                    <button className="btn btn-ghost btn-icon" onClick={() => removeItem(idx)} style={{ color: "var(--danger)" }}>×</button>
-                  )}
-                </div>
+              <div className="field-group" style={{ marginBottom: "0.375rem" }}>
+                <label className="label">Name / Firma</label>
+                <input className="input" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} placeholder="Kunde GmbH" />
               </div>
-            ))}
-          </div>
-
-          {/* Mobile: Card Layout */}
-          <div className="item-cards">
-            {items.map((item, idx) => (
-              <div key={idx} className="item-card">
-                <div className="item-card-top">
-                  <span className="item-card-num">Position {idx + 1}</span>
-                  {items.length > 1 && (
-                    <button className="btn btn-ghost btn-icon" onClick={() => removeItem(idx)} style={{ color: "var(--danger)", padding: "0.25rem" }}>×</button>
-                  )}
-                </div>
-                <div className="field-group">
-                  <label className="label">Beschreibung</label>
-                  <input className="input" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Beratungsleistung" />
-                </div>
-                <div className="item-card-row">
-                  <div className="field-group">
-                    <label className="label">Menge</label>
-                    <input className="input" type="number" min="1" value={item.qty} onChange={(e) => updateItem(idx, "qty", e.target.value)} />
-                  </div>
-                  <div className="field-group">
-                    <label className="label">Einheit</label>
-                    <SelectPicker
-                      value={item.unit}
-                      onChange={(v) => updateItem(idx, "unit", v)}
-                      options={UNIT_OPTIONS}
-                      style={{ marginBottom: 0 }}
-                    />
-                  </div>
-                </div>
-                <div className="item-card-row" style={{ position: "relative" }}>
-                  <SelectPicker
-                    value={String(item.taxRate)}
-                    onChange={(v) => updateItem(idx, "taxRate" as any, Number(v))}
-                    options={TAX_RATE_SELECT_OPTIONS}
-                    label="USt-Satz"
-                    style={{ marginBottom: 0 }}
-                  />
-                </div>
-                <div className="field-group">
-                  <label className="label">Preis/Einh. (EUR)</label>
-                  <input className="input" type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", e.target.value)} />
-                </div>
+              <div className="field-group" style={{ marginBottom: "0.375rem" }}>
+                <label className="label">Straße</label>
+                <input className="input" value={recipientStreet} onChange={(e) => setRecipientStreet(e.target.value)} placeholder="Musterstraße 1" />
               </div>
-            ))}
-          </div>
-
-          <button className="btn btn-sm" onClick={addItem} style={{ marginTop: "0.25rem" }}>+ Position</button>
-
-          {/* Tax mode + Summary in einer Zeile */}
-          <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem", alignItems: "flex-start" }}>
-            <div className="field-group" style={{ flex: 0.8, position: "relative" }}>
-              <label className="label">Steuerrechtlicher Status</label>
-              <SelectPicker
-                value={taxMode}
-                onChange={setTaxMode}
-                options={TAX_MODE_OPTIONS}
-                style={{ marginBottom: 0 }}
-              />
-              <div style={{ fontSize: "0.625rem", color: "var(--fg-3)", marginTop: "0.25rem" }}>
-                Steuersatz pro Position. Status bestimmt den Hinweis.
+              <div className="field-group" style={{ marginBottom: "0.375rem" }}>
+                <label className="label">PLZ + Ort + Land</label>
+                <input className="input" value={recipientCity} onChange={(e) => setRecipientCity(e.target.value)} placeholder="1010 Wien, Österreich" />
               </div>
-            </div>
-            <div style={{ flex: 1, padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "0.25rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.125rem" }}>
-                <span style={{ color: "var(--fg-3)", fontSize: "0.75rem" }}>Netto</span>
-                <span style={{ fontSize: "0.75rem" }}>{money(netTotal)}</span>
+              <div className="field-group" style={{ marginBottom: "0.375rem" }}>
+                <label className="label">UID (optional)</label>
+                <input className="input" value={recipientUid} onChange={(e) => setRecipientUid(e.target.value)} placeholder="ATU..." />
               </div>
-              {taxBreakdown.filter((b) => b.taxRate > 0).map((b) => (
-                <div key={b.taxRate} style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.125rem" }}>
-                  <span style={{ color: "var(--fg-3)", fontSize: "0.6875rem" }}>
-                    USt {b.taxRate.toFixed(0)}% — {money(b.netAmount)}
-                  </span>
-                  <span style={{ fontSize: "0.6875rem" }}>{money(b.vatAmount)}</span>
-                </div>
-              ))}
-              {taxBreakdown.some((b) => b.taxRate === 0) && (
+
+              {/* Tax mode + Summary below recipient */}
+              <div className="field-group" style={{ position: "relative", marginBottom: "0.5rem" }}>
+                <label className="label">Steuerrechtlicher Status</label>
+                <SelectPicker
+                  value={taxMode}
+                  onChange={setTaxMode}
+                  options={TAX_MODE_OPTIONS}
+                  style={{ marginBottom: 0 }}
+                />
+              </div>
+
+              <div style={{ padding: "0.625rem", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "0.25rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.125rem" }}>
-                  <span style={{ color: "var(--fg-3)", fontSize: "0.6875rem" }}>
-                    Frei (0%) — {money(taxBreakdown.find((b) => b.taxRate === 0)!.netAmount)}
-                  </span>
-                  <span style={{ fontSize: "0.6875rem" }}>€ 0,00</span>
+                  <span style={{ color: "var(--fg-3)", fontSize: "0.6875rem" }}>Netto</span>
+                  <span style={{ fontSize: "0.6875rem" }}>{money(netTotal)}</span>
                 </div>
-              )}
-              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600, borderTop: "1px solid var(--border)", paddingTop: "0.25rem", marginTop: "0.125rem" }}>
-                <span style={{ fontSize: "0.8125rem" }}>Gesamt</span>
-                <span style={{ color: "var(--accent)", fontSize: "0.8125rem" }}>{money(grossTotal)}</span>
+                {taxBreakdown.filter((b) => b.taxRate > 0).map((b) => (
+                  <div key={b.taxRate} style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.125rem" }}>
+                    <span style={{ color: "var(--fg-3)", fontSize: "0.625rem" }}>USt {b.taxRate.toFixed(0)}%</span>
+                    <span style={{ fontSize: "0.625rem" }}>{money(b.vatAmount)}</span>
+                  </div>
+                ))}
+                {taxBreakdown.some((b) => b.taxRate === 0) && (
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.125rem" }}>
+                    <span style={{ color: "var(--fg-3)", fontSize: "0.625rem" }}>Frei (0%)</span>
+                    <span style={{ fontSize: "0.625rem" }}>€ 0,00</span>
+                  </div>
+                )}
+                <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600, borderTop: "1px solid var(--border)", paddingTop: "0.1875rem", marginTop: "0.125rem" }}>
+                  <span style={{ fontSize: "0.75rem" }}>Gesamt</span>
+                  <span style={{ color: "var(--accent)", fontSize: "0.75rem" }}>{money(grossTotal)}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Payment terms */}
-          <div className="field-group" style={{ marginTop: "0.5rem" }}>
-            <label className="label">Zahlungsbedingungen</label>
-            <input className="input" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
+            {/* ── RIGHT: Items ── */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.375rem" }}>
+                <h4 style={{ margin: 0, fontSize: "0.8125rem" }}>Positionen</h4>
+                <button className="btn btn-sm" onClick={addItem} style={{ padding: "0.25rem 0.5rem", fontSize: "0.6875rem" }}>+ Position</button>
+              </div>
+
+              {/* Desktop: Grid Table */}
+              <div className="item-row-desktop">
+                {items.map((item, idx) => (
+                  <div key={idx} className="item-row" style={{ display: "grid", gridTemplateColumns: "1fr 45px 1fr 80px 70px 80px 24px", gap: "0.375rem", marginBottom: "0.375rem", alignItems: "end" }}>
+                    <div>
+                      {idx === 0 && <label className="label">Beschreibung</label>}
+                      <input className="input" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Beratungsleistung" />
+                    </div>
+                    <div>
+                      {idx === 0 && <label className="label">Menge</label>}
+                      <input className="input" type="number" min="1" value={item.qty} onChange={(e) => updateItem(idx, "qty", e.target.value)} />
+                    </div>
+                    <div>
+                      {idx === 0 && <label className="label">Einheit</label>}
+                      <SelectPicker
+                        value={item.unit}
+                        onChange={(v) => updateItem(idx, "unit", v)}
+                        options={UNIT_OPTIONS}
+                        style={{ marginBottom: 0 }}
+                      />
+                    </div>
+                    <div style={{ position: "relative" }}>
+                      {idx === 0 && <label className="label">USt</label>}
+                      <SelectPicker
+                        value={String(item.taxRate)}
+                        onChange={(v) => updateItem(idx, "taxRate" as any, Number(v))}
+                        options={TAX_RATE_SELECT_OPTIONS}
+                        style={{ marginBottom: 0 }}
+                      />
+                    </div>
+                    <div>
+                      {idx === 0 && <label className="label">Preis</label>}
+                      <input className="input" type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", e.target.value)} />
+                    </div>
+                    <div>
+                      {idx === 0 && <label className="label">Total</label>}
+                      <div style={{ padding: "0.5rem 0.5rem", fontSize: "0.75rem", fontWeight: 600, color: "var(--fg)", minHeight: "44px", display: "flex", alignItems: "center" }}>
+                        {money(item.qty * item.unitPrice)}
+                      </div>
+                    </div>
+                    <div>
+                      {items.length > 1 && (
+                        <button className="btn btn-ghost btn-icon" onClick={() => removeItem(idx)} style={{ color: "var(--danger)" }}>×</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Mobile: Card Layout */}
+              <div className="item-cards">
+                {items.map((item, idx) => (
+                  <div key={idx} className="item-card">
+                    <div className="item-card-top">
+                      <span className="item-card-num">Position {idx + 1}</span>
+                      {items.length > 1 && (
+                        <button className="btn btn-ghost btn-icon" onClick={() => removeItem(idx)} style={{ color: "var(--danger)", padding: "0.25rem" }}>×</button>
+                      )}
+                    </div>
+                    <div className="field-group">
+                      <label className="label">Beschreibung</label>
+                      <input className="input" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Beratungsleistung" />
+                    </div>
+                    <div className="item-card-row">
+                      <div className="field-group">
+                        <label className="label">Menge</label>
+                        <input className="input" type="number" min="1" value={item.qty} onChange={(e) => updateItem(idx, "qty", e.target.value)} />
+                      </div>
+                      <div className="field-group">
+                        <label className="label">Einheit</label>
+                        <SelectPicker
+                          value={item.unit}
+                          onChange={(v) => updateItem(idx, "unit", v)}
+                          options={UNIT_OPTIONS}
+                          style={{ marginBottom: 0 }}
+                        />
+                      </div>
+                    </div>
+                    <div className="item-card-row" style={{ position: "relative" }}>
+                      <SelectPicker
+                        value={String(item.taxRate)}
+                        onChange={(v) => updateItem(idx, "taxRate" as any, Number(v))}
+                        options={TAX_RATE_SELECT_OPTIONS}
+                        label="USt-Satz"
+                        style={{ marginBottom: 0 }}
+                      />
+                    </div>
+                    <div className="field-group">
+                      <label className="label">Preis/Einh. (EUR)</label>
+                      <input className="input" type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", e.target.value)} />
+                    </div>
+                  </div>
+                ))}
+                <button className="btn btn-sm" onClick={addItem} style={{ marginTop: "0.25rem" }}>+ Position</button>
+              </div>
+            </div>
           </div>
 
           {error && (
-            <div style={{ marginTop: "0.75rem", padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--danger)", color: "var(--danger)", fontSize: "0.8125rem" }}>
+            <div style={{ marginTop: "0.5rem", padding: "0.5rem 0.625rem", background: "var(--surface-2)", border: "1px solid var(--danger)", color: "var(--danger)", fontSize: "0.75rem", borderRadius: "0.25rem" }}>
               {error}
             </div>
           )}
@@ -491,7 +459,6 @@ function DatePicker({ value, onChange, label }: { value: string; onChange: (v: s
   const firstDay = new Date(viewYear, viewMonth, 1);
   const lastDay = new Date(viewYear, viewMonth + 1, 0);
   const daysInMonth = lastDay.getDate();
-  // Monday = 0
   let startWeekday = firstDay.getDay() - 1;
   if (startWeekday < 0) startWeekday = 6;
 
@@ -603,19 +570,19 @@ function CustomerPicker({ customers, value, onChange }: { customers: any[]; valu
   });
 
   return (
-    <div className="field-group" ref={ref} style={{ position: "relative" }}>
+    <div className="field-group" ref={ref} style={{ position: "relative", marginBottom: "0.375rem" }}>
       <label className="label">Aus Kundenstamm wählen</label>
       <div
         onClick={() => setOpen(!open)}
         style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "0.625rem 0.75rem",
+          padding: "0.5rem 0.625rem",
           background: "var(--surface)",
           border: "1px solid var(--border)",
           cursor: "pointer",
           fontFamily: "inherit",
-          fontSize: "0.8125rem",
-          minHeight: "44px",
+          fontSize: "0.75rem",
+          minHeight: "40px",
         }}
       >
         <span style={{ color: selected ? "var(--fg)" : "var(--fg-4)" }}>

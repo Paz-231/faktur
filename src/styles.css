@@ -1149,3 +1149,10 @@ tbody tr:hover {
   color: var(--accent);
   font-weight: 500;
 }
+
+/* ── CreateInvoiceModal: two-column grid → single column on mobile ── */
+@media (max-width: 768px) {
+  .create-invoice-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
