@@ -4,8 +4,7 @@
    Dark/Light Switch · Mobile First
    ═══════════════════════════════════════════════════════════ */
 
-/* ── Fonts ─────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap');
+/* ── Fonts: geladen via <link> in index.html (preconnect) ──── */
 
 /* ── Dark Theme (default) ──────────────────────────────────── */
 :root,

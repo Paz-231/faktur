@@ -1,5 +1,6 @@
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
+import { MONTH_NAMES_SHORT, money, moneyRound } from "./lib";
 
 interface DashboardPageProps {
   auth: { userId: string; email: string; name: string; plan: string; sessionToken: string };
@@ -38,19 +39,16 @@ export function AnalyticsDashboard({ auth, onUpgrade }: DashboardPageProps) {
 
   const topCustomers = (stats?.topCustomers ?? []).map((c) => [c.name, c.revenue] as [string, number]);
 
-  const monthNames = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
   const months = (stats?.trend ?? []).map((t) => ({
-    label: `${monthNames[t.m]} ${t.y}`,
+    label: `${MONTH_NAMES_SHORT[t.m]} ${t.y}`,
     revenue: t.revenue,
     expenses: t.expenses,
   }));
 
   const maxBar = Math.max(...months.map(m => Math.max(m.revenue, m.expenses)), 1);
 
-  const money = (v: number) => `€ ${(v || 0).toFixed(0)}`;
-  const money2 = (v: number) => `€ ${(v || 0).toFixed(2).replace(".", ",")}`;
 
-  const monthLabel = `${monthNames[currentMonth]} ${currentYear}`;
+  const monthLabel = `${MONTH_NAMES_SHORT[currentMonth]} ${currentYear}`;
 
   return (
     <div className="slide-up">
@@ -89,25 +87,25 @@ export function AnalyticsDashboard({ auth, onUpgrade }: DashboardPageProps) {
       <div className="stat-row">
         <div className="stat">
           <div className="stat-label">Einnahmen (Netto)</div>
-          <div className="stat-value accent">{money2(monthRevenue)}</div>
+          <div className="stat-value accent">{money(monthRevenue)}</div>
           <div className="stat-sub">{stats?.month.auftragCount ?? 0} Aufträge</div>
         </div>
         <div className="stat">
           <div className="stat-label">Ausgaben (Netto)</div>
-          <div className="stat-value">{money2(monthExpenses)}</div>
+          <div className="stat-value">{money(monthExpenses)}</div>
           <div className="stat-sub">{stats?.month.incomingCount ?? 0} Rechnungen</div>
         </div>
         <div className="stat">
           <div className="stat-label">Gewinn (Monat)</div>
           <div className="stat-value" style={{ color: monthProfit >= 0 ? "var(--success)" : "var(--danger)" }}>
-            {money2(monthProfit)}
+            {money(monthProfit)}
           </div>
           <div className="stat-sub">{monthProfit >= 0 ? "positiv" : "negativ"}</div>
         </div>
         <div className="stat">
           <div className="stat-label">USt-Saldo</div>
           <div className="stat-value" style={{ color: ustSaldo >= 0 ? "var(--danger)" : "var(--success)" }}>
-            {money2(ustSaldo)}
+            {money(ustSaldo)}
           </div>
           <div className="stat-sub">{ustSaldo >= 0 ? "zu zahlen" : "Erstattung"}</div>
         </div>
@@ -118,23 +116,23 @@ export function AnalyticsDashboard({ auth, onUpgrade }: DashboardPageProps) {
       <div className="stat-row">
         <div className="stat">
           <div className="stat-label">Jahreseinnahmen</div>
-          <div className="stat-value accent">{money2(yearRevenue)}</div>
+          <div className="stat-value accent">{money(yearRevenue)}</div>
           <div className="stat-sub">{stats?.year.auftragCount ?? 0} Aufträge</div>
         </div>
         <div className="stat">
           <div className="stat-label">Jahresausgaben</div>
-          <div className="stat-value">{money2(yearExpenses)}</div>
+          <div className="stat-value">{money(yearExpenses)}</div>
           <div className="stat-sub">{stats?.year.incomingCount ?? 0} Rechnungen</div>
         </div>
         <div className="stat">
           <div className="stat-label">Jahresgewinn</div>
           <div className="stat-value" style={{ color: yearProfit >= 0 ? "var(--success)" : "var(--danger)" }}>
-            {money2(yearProfit)}
+            {money(yearProfit)}
           </div>
         </div>
         <div className="stat">
           <div className="stat-label">Offene Verbindlichkeiten</div>
-          <div className="stat-value">{money2(openPayables)}</div>
+          <div className="stat-value">{money(openPayables)}</div>
           <div className="stat-sub">{counts.incomingOpen} offen</div>
         </div>
       </div>
@@ -163,7 +161,7 @@ export function AnalyticsDashboard({ auth, onUpgrade }: DashboardPageProps) {
                 }} />
               </div>
               <div style={{ fontSize: "0.625rem", color: "var(--fg-3)", marginTop: "0.375rem" }}>{m.label}</div>
-              <div style={{ fontSize: "0.625rem", color: "var(--accent)", fontWeight: 500 }}>{money(m.revenue)}</div>
+              <div style={{ fontSize: "0.625rem", color: "var(--accent)", fontWeight: 500 }}>{moneyRound(m.revenue)}</div>
             </div>
           ))}
         </div>
@@ -194,7 +192,7 @@ export function AnalyticsDashboard({ auth, onUpgrade }: DashboardPageProps) {
                     <span style={{ color: "var(--fg-4)", fontSize: "0.75rem", width: "1.5rem" }}>#{i + 1}</span>
                     <span style={{ fontSize: "0.8125rem" }}>{name}</span>
                   </div>
-                  <span style={{ fontWeight: 600, color: "var(--accent)", fontSize: "0.8125rem" }}>{money2(rev as number)}</span>
+                  <span style={{ fontWeight: 600, color: "var(--accent)", fontSize: "0.8125rem" }}>{money(rev as number)}</span>
                 </div>
               ))}
             </div>

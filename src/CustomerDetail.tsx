@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { CreateInvoiceModal } from "./CreateInvoiceModal";
 import { AuftragDetail } from "./AuftragDetail";
+import { money } from "./lib";
 
 interface CustomerDetailProps {
   customerId: string;
@@ -33,7 +34,6 @@ export function CustomerDetail({ customerId, userId, sessionToken, onClose, onRe
   // Rechnungen hängen immer an einem Auftrag — der Detail-Dialog zeigt sie)
   const [openAuftragId, setOpenAuftragId] = useState<string | null>(null);
 
-  const money = (v: number) => `€ ${(v || 0).toFixed(2).replace(".", ",")}`;
 
   if (!customer) {
     return (

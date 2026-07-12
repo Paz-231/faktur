@@ -219,6 +219,13 @@ export const sendMagicLinkEmail = internalAction({
       return { success: false, dev: true, link: args.magicLink };
     }
 
+    // Der Name stammt aus User-Eingaben — vor dem Einbetten ins HTML escapen
+    const safeName = args.userName
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -232,7 +239,7 @@ export const sendMagicLinkEmail = internalAction({
         html: `
           <div style="font-family: -apple-system, system-ui, sans-serif; max-width: 500px; margin: 0 auto; padding: 2rem;">
             <h1 style="color: #0D3B4C;">Faktox Login</h1>
-            <p>Hallo ${args.userName},</p>
+            <p>Hallo ${safeName},</p>
             <p>Klicke auf den folgenden Link um dich bei Faktox einzuloggen:</p>
             <p>
               <a href="${args.magicLink}"

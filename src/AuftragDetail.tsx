@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../convex/_generated/api";
+import { money } from "./lib";
 
 interface AuftragDetailProps {
   auftragId: string;
@@ -65,7 +66,6 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
     }
   };
 
-  const money = (v: number) => `€ ${(v || 0).toFixed(2).replace(".", ",")}`;
 
   if (!detail) {
     return (

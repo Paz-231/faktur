@@ -11,6 +11,21 @@ export function money(v: number): string {
   return `€ ${(v || 0).toFixed(2).replace(".", ",")}`;
 }
 
+// Gerundet, ohne Nachkommastellen (Charts, kompakte Anzeigen)
+export function moneyRound(v: number): string {
+  return `€ ${(v || 0).toFixed(0)}`;
+}
+
+export const MONTH_NAMES = [
+  "Januar", "Februar", "März", "April", "Mai", "Juni",
+  "Juli", "August", "September", "Oktober", "November", "Dezember",
+] as const;
+
+export const MONTH_NAMES_SHORT = [
+  "Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
+  "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
+] as const;
+
 // Parse dates stored as DD.MM.YYYY (de-AT) or YYYY-MM-DD
 export function parseAppDate(s: string): Date | null {
   if (!s) return null;

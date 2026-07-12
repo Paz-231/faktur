@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { SelectPicker } from "./SelectPicker";
 import { TAX_RATE_SELECT_OPTIONS, TAX_RATE_MAP, computeTaxBreakdown, computeTotals, taxRateLabel } from "./taxRates";
+import { money } from "./lib";
 
 export interface InitialCustomer {
   customerId: string;
@@ -180,7 +181,6 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
     }
   };
 
-  const money = (v: number) => `€ ${v.toFixed(2).replace(".", ",")}`;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
