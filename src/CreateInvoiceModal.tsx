@@ -205,83 +205,85 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "min(640px, 100%)" }}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "min(820px, 100%)", maxHeight: "92vh", display: "flex", flexDirection: "column" }}>
         <div className="modal-header">
           <h2 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Neuer Auftrag</h2>
           <button className="btn btn-ghost btn-icon" onClick={onClose}>×</button>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" style={{ flex: 1, overflowY: "auto", padding: "1rem 1.25rem" }}>
           {prefillData && (
-            <div style={{ padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--accent)", marginBottom: "1rem", fontSize: "0.75rem", color: "var(--accent)" }}>
+            <div style={{ padding: "0.5rem 0.75rem", background: "var(--surface-2)", border: "1px solid var(--accent)", marginBottom: "0.75rem", fontSize: "0.75rem", color: "var(--accent)", borderRadius: "0.25rem" }}>
               KI-vorausgefüllt — bitte alle Daten prüfen und bei Bedarf anpassen.
             </div>
           )}
 
           {/* Flow Info */}
-          <div style={{ padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--border)", marginBottom: "1rem", fontSize: "0.75rem", color: "var(--fg-3)" }}>
+          <div style={{ padding: "0.5rem 0.75rem", background: "var(--surface-2)", border: "1px solid var(--border)", marginBottom: "0.75rem", fontSize: "0.6875rem", color: "var(--fg-3)", borderRadius: "0.25rem" }}>
             Der Auftrag ist die Basis — die Rechnung erstellst du danach mit einem Klick aus der Auftrags-Detailansicht (lückenloser Nummernkreis inklusive).
           </div>
 
-          {/* Type */}
-          <div className="field-group">
-            <label className="label">Typ</label>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              {(["Rechnung", "Honorarnote"] as const).map((t) => (
-                <button
-                  key={t}
-                  className={`btn btn-sm ${type === t ? "btn-primary" : ""}`}
-                  onClick={() => setType(t)}
-                  style={{ flex: 1, justifyContent: "center" }}
-                >
-                  {t}
-                </button>
-              ))}
+          {/* Type + Date in einer Zeile */}
+          <div style={{ display: "flex", gap: "1rem", marginBottom: "0.75rem" }}>
+            <div className="field-group" style={{ flex: "0 0 auto" }}>
+              <label className="label">Typ</label>
+              <div style={{ display: "flex", gap: "0.375rem" }}>
+                {(["Rechnung", "Honorarnote"] as const).map((t) => (
+                  <button
+                    key={t}
+                    className={`btn btn-sm ${type === t ? "btn-primary" : ""}`}
+                    onClick={() => setType(t)}
+                    style={{ padding: "0.5rem 0.875rem", justifyContent: "center" }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="field-group" style={{ flex: 1 }}>
+              <label className="label">Auftragsdatum</label>
+              <input className="input" value={date} onChange={(e) => setDate(e.target.value)} placeholder="DD.MM.YYYY" />
             </div>
           </div>
 
-          {/* Date — nur Auftragsdatum, Rechnungsdatum wird bei Rechnungsgenerierung vergeben */}
-          <div className="field-group">
-            <label className="label">Auftragsdatum</label>
-            <input className="input" value={date} onChange={(e) => setDate(e.target.value)} placeholder="DD.MM.YYYY" />
-          </div>
-
           {/* Recipient */}
-          <h4 style={{ marginTop: "1rem", marginBottom: "0.75rem" }}>Empfänger</h4>
+          <h4 style={{ marginTop: "0.5rem", marginBottom: "0.5rem", fontSize: "0.875rem" }}>Empfänger</h4>
 
           {/* Bestehenden Kunden wählen — spart die Doppeleingabe */}
           {customers.length > 0 && (
             <>
               <CustomerPicker customers={customers} value={customerId} onChange={handleSelectCustomer} />
               {customerId && (
-                <div style={{ fontSize: "0.6875rem", color: "var(--success)", marginTop: "0.375rem", marginBottom: "0.75rem" }}>
+                <div style={{ fontSize: "0.6875rem", color: "var(--success)", marginTop: "0.25rem", marginBottom: "0.5rem" }}>
                   Kundendaten übernommen — der Auftrag wird mit diesem Kunden verknüpft.
                 </div>
               )}
             </>
           )}
 
-          <div className="field-group">
-            <label className="label">Name / Firma</label>
-            <input className="input" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} placeholder="Kunde GmbH" />
-          </div>
-          <div className="field-group">
-            <label className="label">Straße</label>
-            <input className="input" value={recipientStreet} onChange={(e) => setRecipientStreet(e.target.value)} placeholder="Musterstraße 1" />
-          </div>
-          <div className="field-row">
-            <div className="field-group">
-              <label className="label">PLZ + Ort + Land</label>
-              <input className="input" value={recipientCity} onChange={(e) => setRecipientCity(e.target.value)} placeholder="1010 Wien, Österreich" />
+          <div style={{ display: "flex", gap: "1rem", marginBottom: "0.5rem" }}>
+            <div className="field-group" style={{ flex: 1 }}>
+              <label className="label">Name / Firma</label>
+              <input className="input" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} placeholder="Kunde GmbH" />
             </div>
-            <div className="field-group">
+            <div className="field-group" style={{ flex: 1 }}>
               <label className="label">UID (optional)</label>
               <input className="input" value={recipientUid} onChange={(e) => setRecipientUid(e.target.value)} placeholder="ATU..." />
             </div>
           </div>
+          <div style={{ display: "flex", gap: "1rem", marginBottom: "0.5rem" }}>
+            <div className="field-group" style={{ flex: 1 }}>
+              <label className="label">Straße</label>
+              <input className="input" value={recipientStreet} onChange={(e) => setRecipientStreet(e.target.value)} placeholder="Musterstraße 1" />
+            </div>
+            <div className="field-group" style={{ flex: 1 }}>
+              <label className="label">PLZ + Ort + Land</label>
+              <input className="input" value={recipientCity} onChange={(e) => setRecipientCity(e.target.value)} placeholder="1010 Wien, Österreich" />
+            </div>
+          </div>
 
           {/* Items */}
-          <h4 className="responsive-hide-label" style={{ marginTop: "1rem", marginBottom: "0.75rem" }}>Positionen</h4>
+          <h4 className="responsive-hide-label" style={{ marginTop: "0.5rem", marginBottom: "0.5rem", fontSize: "0.875rem" }}>Positionen</h4>
 
           {/* Desktop: Grid Table */}
           <div className="item-row-desktop">
@@ -378,53 +380,52 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
             ))}
           </div>
 
-          <button className="btn btn-sm" onClick={addItem} style={{ marginTop: "0.5rem" }}>+ Position</button>
+          <button className="btn btn-sm" onClick={addItem} style={{ marginTop: "0.25rem" }}>+ Position</button>
 
-          {/* Tax */}
-          {/* Tax mode — steuerrechtlicher Status (bestimmt taxNote, nicht pro-Position rate) */}
-          <div className="field-group" style={{ marginTop: "1rem", position: "relative" }}>
-            <label className="label">Steuerrechtlicher Status</label>
-            <SelectPicker
-              value={taxMode}
-              onChange={setTaxMode}
-              options={TAX_MODE_OPTIONS}
-              style={{ marginBottom: 0 }}
-            />
-            <div style={{ fontSize: "0.6875rem", color: "var(--fg-3)", marginTop: "0.375rem" }}>
-              Der Steuersatz wird pro Position ausgewählt. Dieser Status bestimmt den Steuerhinweis auf der Rechnung.
-            </div>
-          </div>
-
-          {/* Summary — per-rate tax breakdown */}
-          <div style={{ marginTop: "1rem", padding: "1rem", background: "var(--surface-2)", border: "1px solid var(--border)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
-              <span style={{ color: "var(--fg-3)", fontSize: "0.8125rem" }}>Gesamt netto</span>
-              <span style={{ fontSize: "0.8125rem" }}>{money(netTotal)}</span>
-            </div>
-            {taxBreakdown.filter((b) => b.taxRate > 0).map((b) => (
-              <div key={b.taxRate} style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
-                <span style={{ color: "var(--fg-3)", fontSize: "0.75rem" }}>
-                  USt ({b.taxRate.toFixed(0)}%) — {money(b.netAmount)} netto
-                </span>
-                <span style={{ fontSize: "0.75rem" }}>{money(b.vatAmount)}</span>
+          {/* Tax mode + Summary in einer Zeile */}
+          <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem", alignItems: "flex-start" }}>
+            <div className="field-group" style={{ flex: 0.8, position: "relative" }}>
+              <label className="label">Steuerrechtlicher Status</label>
+              <SelectPicker
+                value={taxMode}
+                onChange={setTaxMode}
+                options={TAX_MODE_OPTIONS}
+                style={{ marginBottom: 0 }}
+              />
+              <div style={{ fontSize: "0.625rem", color: "var(--fg-3)", marginTop: "0.25rem" }}>
+                Steuersatz pro Position. Status bestimmt den Hinweis.
               </div>
-            ))}
-            {taxBreakdown.some((b) => b.taxRate === 0) && (
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
-                <span style={{ color: "var(--fg-3)", fontSize: "0.75rem" }}>
-                  Steuerfrei (0%) — {money(taxBreakdown.find((b) => b.taxRate === 0)!.netAmount)} netto
-                </span>
-                <span style={{ fontSize: "0.75rem" }}>€ 0,00</span>
+            </div>
+            <div style={{ flex: 1, padding: "0.75rem", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "0.25rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.125rem" }}>
+                <span style={{ color: "var(--fg-3)", fontSize: "0.75rem" }}>Netto</span>
+                <span style={{ fontSize: "0.75rem" }}>{money(netTotal)}</span>
               </div>
-            )}
-            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600, borderTop: "1px solid var(--border)", paddingTop: "0.5rem", marginTop: "0.25rem" }}>
-              <span>Gesamtbetrag</span>
-              <span style={{ color: "var(--accent)" }}>{money(grossTotal)}</span>
+              {taxBreakdown.filter((b) => b.taxRate > 0).map((b) => (
+                <div key={b.taxRate} style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.125rem" }}>
+                  <span style={{ color: "var(--fg-3)", fontSize: "0.6875rem" }}>
+                    USt {b.taxRate.toFixed(0)}% — {money(b.netAmount)}
+                  </span>
+                  <span style={{ fontSize: "0.6875rem" }}>{money(b.vatAmount)}</span>
+                </div>
+              ))}
+              {taxBreakdown.some((b) => b.taxRate === 0) && (
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.125rem" }}>
+                  <span style={{ color: "var(--fg-3)", fontSize: "0.6875rem" }}>
+                    Frei (0%) — {money(taxBreakdown.find((b) => b.taxRate === 0)!.netAmount)}
+                  </span>
+                  <span style={{ fontSize: "0.6875rem" }}>€ 0,00</span>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 600, borderTop: "1px solid var(--border)", paddingTop: "0.25rem", marginTop: "0.125rem" }}>
+                <span style={{ fontSize: "0.8125rem" }}>Gesamt</span>
+                <span style={{ color: "var(--accent)", fontSize: "0.8125rem" }}>{money(grossTotal)}</span>
+              </div>
             </div>
           </div>
 
           {/* Payment terms */}
-          <div className="field-group" style={{ marginTop: "1rem" }}>
+          <div className="field-group" style={{ marginTop: "0.5rem" }}>
             <label className="label">Zahlungsbedingungen</label>
             <input className="input" value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
           </div>
@@ -436,7 +437,7 @@ export function CreateInvoiceModal({ userId, sessionToken, onClose, onCreated, i
           )}
         </div>
 
-        <div className="modal-footer">
+        <div className="modal-footer" style={{ flexShrink: 0 }}>
           <button className="btn" onClick={onClose}>Abbrechen</button>
           <button className="btn btn-primary" onClick={handleCreate} disabled={creating}>
             {creating ? (createdStep || "Erstelle...") : "Auftrag erstellen"}
