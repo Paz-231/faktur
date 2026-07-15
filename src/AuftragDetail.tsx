@@ -290,9 +290,8 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
             ))}
           </div>
 
-          {/* Summary — per-rate tax breakdown */}
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1.5rem" }}>
-          <div style={{ minWidth: 240, maxWidth: "100%" }}>
+          {/* Summary — per-rate tax breakdown, volle Breite */}
+          <div style={{ marginBottom: "1.5rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "0.25rem 0" }}>
                 <span style={{ color: "var(--fg-3)", fontSize: "0.8125rem" }}>Gesamt netto</span>
                 <span style={{ fontSize: "0.8125rem" }}>{money(auftrag.netAmount)}</span>
@@ -328,7 +327,6 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
               <div style={{ fontSize: "0.6875rem", color: "var(--fg-3)", marginTop: "0.5rem" }}>
                 {TAX_LABELS[auftrag.taxMode] || auftrag.taxMode}
               </div>
-            </div>
           </div>
 
           {/* Auftrag Actions */}
