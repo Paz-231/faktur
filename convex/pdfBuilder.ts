@@ -266,7 +266,7 @@ export async function buildDocumentPdf(doc: PdfDocument, issuer: PdfIssuer): Pro
   ensureSpace(100);
   const sumRow = (label: string, value: string, isBold = false) => {
     textRight(page, label, rightX - 130, y, isBold ? bold : font, isBold ? 10.5 : 9.2);
-    textRight(page, value, rightX, y, isBold ? bold : font, isBold ? 10.5 : 9.2);
+    textRight(page, value, rightX - 6, y, isBold ? bold : font, isBold ? 10.5 : 9.2);
     y -= 17;
   };
   // Summe der Positionen (Zwischensumme aus der Positionstabelle)
@@ -290,7 +290,7 @@ export async function buildDocumentPdf(doc: PdfDocument, issuer: PdfIssuer): Pro
     }
   }
 
-  page.drawLine({ start: { x: rightX - 200, y: y + 10 }, end: { x: rightX, y: y + 10 }, thickness: 0.5, color: black });
+  page.drawLine({ start: { x: rightX - 200, y: y + 10 }, end: { x: rightX - 6, y: y + 10 }, thickness: 0.5, color: black });
   y -= 4;
   sumRow("Gesamtbetrag", money(doc.grossAmount), true);
   y -= 10;
