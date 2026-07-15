@@ -239,6 +239,7 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
 
           {/* Positionen */}
           <h4>Positionen</h4>
+          {/* Desktop: Tabelle */}
           <div className="table-wrap" style={{ marginBottom: "1.5rem" }}>
             <table>
               <thead>
@@ -266,6 +267,27 @@ export function AuftragDetail({ auftragId, userId, sessionToken, onClose, onRefr
                 ))}
               </tbody>
             </table>
+          </div>
+          {/* Mobile: Karten */}
+          <div className="data-cards" style={{ marginBottom: "1.5rem" }}>
+            {auftrag.items.map((item: any) => (
+              <div key={item.pos} className="data-card" style={{ padding: "0.75rem", marginBottom: "0.5rem", background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.375rem" }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>
+                    <span style={{ color: "var(--fg-3)", marginRight: "0.25rem" }}>#{item.pos}</span>
+                    {item.description}
+                  </div>
+                  <div style={{ fontWeight: 600, color: "var(--accent)", whiteSpace: "nowrap", marginLeft: "0.5rem" }}>
+                    {money(item.total)}
+                  </div>
+                </div>
+                <div style={{ fontSize: "0.75rem", color: "var(--fg-3)", display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+                  <span>{item.qty} {item.unit}</span>
+                  <span>USt {(item.taxRate || 0).toFixed(0)}%</span>
+                  <span>à {money(item.unitPrice)}</span>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Summary — per-rate tax breakdown */}
