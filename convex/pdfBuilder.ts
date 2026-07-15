@@ -65,10 +65,14 @@ const LEFT = 55;
 const RIGHT = 55;
 
 function money(v: number): string {
+  return `€ ${moneyNumber(v)}`;
+}
+
+function moneyNumber(v: number): string {
   const s = (v || 0).toFixed(2);
   const [int, dec] = s.split(".");
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return `€ ${grouped},${dec}`;
+  return `${grouped},${dec}`;
 }
 
 // WinAnsi (Standard-Fonts) kann nicht alle Unicode-Zeichen —
@@ -251,11 +255,13 @@ export async function buildDocumentPdf(doc: PdfDocument, issuer: PdfIssuer): Pro
       text(page, s, cx + (cols[4].w - wdt) / 2, baseline, font, 8.9);
       cx += cols[4].w;
     }
-    // Preis
-    textRight(page, money(item.unitPrice), cx + cols[5].w - 6, baseline, font, 8.9);
+    // Preis — € fix links, Zahl rechtsbündig
+    text(page, "€", cx + 6, baseline, font, 8.9);
+    textRight(page, moneyNumber(item.unitPrice), cx + cols[5].w - 6, baseline, font, 8.9);
     cx += cols[5].w;
-    // Gesamt
-    textRight(page, money(item.total), cx + cols[6].w - 6, baseline, font, 8.9);
+    // Gesamt — € fix auf gleicher Linie wie Summen, Zahl rechtsbündig
+    text(page, "€", rightX - 20, baseline, font, 8.9);
+    textRight(page, moneyNumber(item.total), rightX - 6, baseline, font, 8.9);
 
     y -= rowH;
     page.drawLine({ start: { x: LEFT, y: y + 2 }, end: { x: rightX, y: y + 2 }, thickness: 0.3, color: rgb(0.8, 0.8, 0.8) });
@@ -264,35 +270,37 @@ export async function buildDocumentPdf(doc: PdfDocument, issuer: PdfIssuer): Pro
 
   // ── Summen (mit pro-Steuersatz Breakdown) ──
   ensureSpace(100);
-  const sumRow = (label: string, value: string, isBold = false) => {
+  const EUR_FIXED = rightX - 20; // € auf fixer Position, bündig mit Positionstabelle
+  const sumRow = (label: string, value: number, isBold = false) => {
     textRight(page, label, rightX - 130, y, isBold ? bold : font, isBold ? 10.5 : 9.2);
-    textRight(page, value, rightX - 6, y, isBold ? bold : font, isBold ? 10.5 : 9.2);
+    text(page, "€", EUR_FIXED, y, isBold ? bold : font, isBold ? 10.5 : 9.2);
+    textRight(page, moneyNumber(value), rightX - 6, y, isBold ? bold : font, isBold ? 10.5 : 9.2);
     y -= 17;
   };
   // Summe der Positionen (Zwischensumme aus der Positionstabelle)
   const positionSum = doc.items.reduce((sum, i) => sum + (i.total || 0), 0);
-  sumRow("Summe Positionen", money(positionSum));
-  sumRow("Gesamt netto", money(doc.netAmount));
+  sumRow("Summe Positionen", positionSum);
+  sumRow("Gesamt netto", doc.netAmount);
 
   // Per-rate breakdown
   if (doc.taxBreakdown && doc.taxBreakdown.length > 0) {
     for (const b of doc.taxBreakdown) {
       if (b.taxRate > 0 && b.vatAmount > 0) {
-        sumRow(`USt ${b.taxRate.toFixed(0)}% (Netto ${money(b.netAmount)})`, money(b.vatAmount));
+        sumRow(`USt ${b.taxRate.toFixed(0)}% (Netto ${money(b.netAmount)})`, b.vatAmount);
       } else if (b.taxRate === 0 && b.netAmount > 0) {
-        sumRow(`Steuerfrei (0%) — Netto ${money(b.netAmount)}`, "€ 0,00");
+        sumRow(`Steuerfrei (0%) — Netto ${money(b.netAmount)}`, 0);
       }
     }
   } else {
     // Fallback für alte Dokumente ohne taxBreakdown
     if (doc.taxRate > 0 && doc.vatAmount > 0) {
-      sumRow(`Umsatzsteuer (${doc.taxRate.toFixed(0)}%)`, money(doc.vatAmount));
+      sumRow(`Umsatzsteuer (${doc.taxRate.toFixed(0)}%)`, doc.vatAmount);
     }
   }
 
   page.drawLine({ start: { x: rightX - 200, y: y + 10 }, end: { x: rightX - 6, y: y + 10 }, thickness: 0.5, color: black });
   y -= 4;
-  sumRow("Gesamtbetrag", money(doc.grossAmount), true);
+  sumRow("Gesamtbetrag", doc.grossAmount, true);
   y -= 10;
 
   // ── Steuerhinweis ──
