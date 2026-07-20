@@ -51,6 +51,7 @@ export function RecurringOrderModal({
 }: RecurringOrderModalProps) {
   const customers = useQuery(api.customers.list, { userId: userId as any, sessionToken }) ?? [];
   const profile = useQuery(api.profile.get, { userId: userId as any, sessionToken });
+  const access = useQuery(api.recurringOrderAccess.getAccess, { sessionToken });
   const createTemplate = useMutation(api.recurringOrders.createTemplate);
 
   const [title, setTitle] = useState("");
@@ -160,8 +161,8 @@ export function RecurringOrderModal({
   const handleCreate = async () => {
     if (creating) return;
     setError("");
-    if (plan === "free") {
-      setError("Wiederkehrende Aufträge sind im Starter- und Pro-Plan verfügbar.");
+    if (!access?.allowed) {
+      setError(access?.reason || "Tarifstatus wird noch geprüft. Bitte versuche es gleich erneut.");
       return;
     }
     if (!profile) {
@@ -241,11 +242,11 @@ export function RecurringOrderModal({
         </div>
 
         <div className="modal-body" style={{ flex: 1, overflowY: "auto" }}>
-          {plan === "free" && (
+          {access && !access.allowed && (
             <div style={{ padding: "0.875rem", border: "1px solid var(--accent)", background: "var(--surface-2)", marginBottom: "1rem" }}>
-              <strong style={{ display: "block", marginBottom: "0.25rem" }}>Starter- oder Pro-Funktion</strong>
+              <strong style={{ display: "block", marginBottom: "0.25rem" }}>Aktiver Starter- oder Pro-Tarif erforderlich</strong>
               <p style={{ fontSize: "0.8125rem", color: "var(--fg-2)", marginBottom: "0.75rem" }}>
-                Wiederkehrende Aufträge automatisieren regelmäßig anfallende Leistungen.
+                {access.reason || "Wiederkehrende Aufträge sind für diesen Tarif derzeit nicht verfügbar."}
               </p>
               <button className="btn btn-primary btn-sm" onClick={onUpgrade}>Tarif ansehen</button>
             </div>
@@ -427,7 +428,7 @@ export function RecurringOrderModal({
 
         <div className="modal-footer" style={{ flexShrink: 0 }}>
           <button className="btn" onClick={onClose}>Abbrechen</button>
-          <button className="btn btn-primary" onClick={handleCreate} disabled={creating || plan === "free" || !profile}>
+          <button className="btn btn-primary" onClick={handleCreate} disabled={creating || access === undefined || !access.allowed || !profile}>
             {creating ? "Serie wird angelegt..." : "Wiederkehrenden Auftrag anlegen"}
           </button>
         </div>

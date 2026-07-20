@@ -53,6 +53,7 @@ export function RecurringOrdersList({
   focusTemplateId,
 }: RecurringOrdersListProps) {
   const templatesQuery = useQuery(api.recurringOrders.listTemplates, { sessionToken });
+  const access = useQuery(api.recurringOrderAccess.getAccess, { sessionToken });
   const templates = templatesQuery ?? [];
   const pauseTemplate = useMutation(api.recurringOrders.pauseTemplate);
   const resumeTemplate = useMutation(api.recurringOrders.resumeTemplate);
@@ -71,7 +72,7 @@ export function RecurringOrdersList({
     setExpandedId(focusTemplateId);
   }, [focusTemplateId]);
 
-  if (templatesQuery === undefined) {
+  if (templatesQuery === undefined || access === undefined) {
     return (
       <div className="empty-state" style={{ padding: "3rem 1.25rem", textAlign: "center" }} aria-live="polite">
         <h3>Wiederkehrende Aufträge werden geladen</h3>
@@ -169,14 +170,17 @@ export function RecurringOrdersList({
     </div>
   );
 
-  if (plan === "free") {
+  if (!access.allowed) {
     return (
       <div className="empty-state" style={{ padding: "3rem 1.25rem", textAlign: "center" }}>
         <h3>Wiederkehrende Aufträge</h3>
-        <p style={{ maxWidth: "560px", margin: "0.5rem auto 1rem" }}>
+        <p style={{ maxWidth: "560px", margin: "0.5rem auto 0.5rem" }}>
           Automatisiere monatliche oder jährliche Leistungen. Zu jedem Termin entsteht ein neuer Auftrag als Entwurf.
         </p>
-        <button className="btn btn-primary" onClick={onUpgrade}>Starter- und Pro-Tarife ansehen</button>
+        <p style={{ maxWidth: "560px", margin: "0 auto 1rem", color: "var(--fg-3)", fontSize: "0.8125rem" }}>
+          {access.reason || "Ein aktiver Starter- oder Pro-Tarif ist erforderlich."}
+        </p>
+        <button className="btn btn-primary" onClick={onUpgrade}>Tarif und Zahlung prüfen</button>
       </div>
     );
   }
