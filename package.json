@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "convex": "convex dev",
     "check": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test shared/recurrence.test.ts"
+    "test": "node --experimental-strip-types --test shared/*.test.ts"
   },
   "dependencies": {
     "convex": "^1.42.1",
