@@ -1,19 +1,24 @@
-import { query, mutation, MutationCtx } from "./_generated/server";
+import { query, mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./authHelper";
 
-// ═══════════════════════════════════════════════════════════
-// Aufträge API — Pflicht-Dokument vor jeder Rechnung
-// ═══════════════════════════════════════════════════════════
-
-// ── Steuer-Breakdown: gruppiert nach Steuersatz ─────────────
 interface TaxBreakdownEntry {
   taxRate: number;
   netAmount: number;
   vatAmount: number;
   grossAmount: number;
 }
+
+const lineItemValidator = v.object({
+  pos: v.number(),
+  description: v.string(),
+  qty: v.number(),
+  unit: v.string(),
+  unitPrice: v.number(),
+  total: v.number(),
+  taxRate: v.optional(v.number()),
+});
 
 function computeTaxBreakdown(items: { total: number; taxRate: number }[]): TaxBreakdownEntry[] {
   const groups: Record<number, { netAmount: number; vatAmount: number; grossAmount: number }> = {};
@@ -26,16 +31,10 @@ function computeTaxBreakdown(items: { total: number; taxRate: number }[]): TaxBr
     groups[rate].grossAmount += item.total + vat;
   }
   return Object.entries(groups)
-    .map(([rate, v]) => ({
-      taxRate: Number(rate),
-      netAmount: v.netAmount,
-      vatAmount: v.vatAmount,
-      grossAmount: v.grossAmount,
-    }))
+    .map(([rate, amounts]) => ({ taxRate: Number(rate), ...amounts }))
     .sort((a, b) => b.taxRate - a.taxRate);
 }
 
-// Default tax rate based on taxMode (used when item.taxRate not set — backward compat)
 function defaultRateForMode(taxMode: string): number {
   const map: Record<string, number> = {
     kleinunternehmer: 0,
@@ -47,36 +46,30 @@ function defaultRateForMode(taxMode: string): number {
   return map[taxMode] ?? 0;
 }
 
-// Atomically pull the next number from the per-user/per-year sequence.
-// Runs inside the calling mutation's transaction — lückenlos garantiert.
 async function nextSequenceNumber(
   ctx: MutationCtx,
   userId: Id<"users">,
   year: number,
-  prefix: string
+  prefix: string,
 ): Promise<string> {
   const existing = await ctx.db
     .query("numberSequences")
     .withIndex("userId_year", (q) => q.eq("userId", userId).eq("year", year))
     .first();
-
-  let num: number;
   if (existing) {
-    num = existing.nextNumber;
-    await ctx.db.patch(existing._id, { nextNumber: num + 1 });
-  } else {
-    num = 1;
-    await ctx.db.insert("numberSequences", {
-      userId,
-      year,
-      nextNumber: 2,
-      createdAt: Date.now(),
-    });
+    const number = existing.nextNumber;
+    await ctx.db.patch(existing._id, { nextNumber: number + 1 });
+    return `${prefix}-${year}-${String(number).padStart(6, "0")}`;
   }
-  return `${prefix}-${year}-${String(num).padStart(6, "0")}`;
+  await ctx.db.insert("numberSequences", {
+    userId,
+    year,
+    nextNumber: 2,
+    createdAt: Date.now(),
+  });
+  return `${prefix}-${year}-000001`;
 }
 
-// Free-plan limits: 3 Aufträge + 3 Rechnungen pro Monat
 const FREE_PLAN_MONTHLY_LIMIT = 3;
 
 function startOfCurrentMonth(): number {
@@ -84,9 +77,37 @@ function startOfCurrentMonth(): number {
   return new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 }
 
-// List all auftrags for a user
+async function assertWithinMonthlyOrderLimit(ctx: MutationCtx, userId: Id<"users">) {
+  const user = await ctx.db.get(userId);
+  if (!user || user.plan !== "free") return;
+  const rows = await ctx.db
+    .query("auftrags")
+    .withIndex("userId_createdAt", (q) => q.eq("userId", userId).gte("createdAt", startOfCurrentMonth()))
+    .take(FREE_PLAN_MONTHLY_LIMIT);
+  if (rows.length >= FREE_PLAN_MONTHLY_LIMIT) {
+    throw new Error(
+      `Free-Plan Limit erreicht: ${FREE_PLAN_MONTHLY_LIMIT} Aufträge pro Monat. Upgrade auf Starter für unbegrenzte Aufträge.`,
+    );
+  }
+}
+
+async function assertWithinMonthlyInvoiceLimit(ctx: MutationCtx, userId: Id<"users">) {
+  const user = await ctx.db.get(userId);
+  if (!user || user.plan !== "free") return;
+  const rows = await ctx.db
+    .query("outgoingInvoices")
+    .withIndex("userId_createdAt", (q) => q.eq("userId", userId).gte("createdAt", startOfCurrentMonth()))
+    .take(FREE_PLAN_MONTHLY_LIMIT);
+  if (rows.length >= FREE_PLAN_MONTHLY_LIMIT) {
+    throw new Error(
+      `Free-Plan Limit erreicht: ${FREE_PLAN_MONTHLY_LIMIT} Rechnungen pro Monat. Upgrade auf Starter für unbegrenzte Rechnungen.`,
+    );
+  }
+}
+
 export const list = query({
   args: { userId: v.id("users"), sessionToken: v.string() },
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
     return await ctx.db
@@ -97,9 +118,9 @@ export const list = query({
   },
 });
 
-// Get single auftrag
 export const get = query({
   args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
@@ -109,38 +130,21 @@ export const get = query({
   },
 });
 
-// Get next auftrag number
 export const getNextNumber = mutation({
   args: { userId: v.id("users"), sessionToken: v.string(), year: v.number() },
+  returns: v.string(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
-    const existing = await ctx.db
-      .query("numberSequences")
-      .withIndex("userId_year", (q) => q.eq("userId", userId).eq("year", args.year))
-      .first();
-
-    if (existing) {
-      const nextNum = existing.nextNumber;
-      await ctx.db.patch(existing._id, { nextNumber: nextNum + 1 });
-      return `AU-${args.year}-${String(nextNum).padStart(6, "0")}`;
-    } else {
-      await ctx.db.insert("numberSequences", {
-        userId,
-        year: args.year,
-        nextNumber: 2,
-        createdAt: Date.now(),
-      });
-      return `AU-${args.year}-000001`;
-    }
+    if (args.userId !== userId) throw new Error("Zugriff verweigert");
+    return await nextSequenceNumber(ctx, userId, args.year, "AU");
   },
 });
 
-// Create auftrag
 export const create = mutation({
   args: {
     userId: v.id("users"),
     sessionToken: v.string(),
-    number: v.optional(v.string()), // wenn nicht gesetzt: atomar aus Nummernkreis
+    number: v.optional(v.string()),
     date: v.string(),
     deliveryDate: v.optional(v.string()),
     periodStart: v.optional(v.string()),
@@ -156,67 +160,46 @@ export const create = mutation({
     netAmount: v.number(),
     vatAmount: v.number(),
     grossAmount: v.number(),
-    items: v.array(v.object({
-      pos: v.number(),
-      description: v.string(),
-      qty: v.number(),
-      unit: v.string(),
-      unitPrice: v.number(),
-      total: v.number(),
-      taxRate: v.optional(v.number()),
-    })),
+    items: v.array(lineItemValidator),
     paymentTerms: v.string(),
     footer: v.optional(v.string()),
     angebotId: v.optional(v.id("angebots")),
   },
+  returns: v.id("auftrags"),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
-    const now = Date.now();
+    if (args.userId !== userId) throw new Error("Zugriff verweigert");
+    await assertWithinMonthlyOrderLimit(ctx, userId);
 
-    // Free-plan limit: max 3 Aufträge pro Monat
-    const user = await ctx.db.get(args.userId);
-    if (user && user.plan === "free") {
-      const monthStart = startOfCurrentMonth();
-      const monthAuftrags = await ctx.db
-        .query("auftrags")
-        .withIndex("userId", (q) => q.eq("userId", args.userId))
-        .filter((q) => q.gte(q.field("createdAt"), monthStart))
-        .collect();
-      if (monthAuftrags.length >= FREE_PLAN_MONTHLY_LIMIT) {
-        throw new Error(
-          "Free-Plan Limit erreicht: 3 Aufträge pro Monat. Upgrade auf Starter für unbegrenzte Aufträge."
-        );
-      }
+    if (args.customerId) {
+      const customer = await ctx.db.get(args.customerId);
+      if (!customer || customer.userId !== userId) throw new Error("Kunde nicht gefunden");
     }
 
-    // Server-side atomic number — lückenloser Nummernkreis
-    const number =
-      args.number ?? (await nextSequenceNumber(ctx, args.userId, new Date().getFullYear(), "AU"));
-
-    // Compute per-rate tax breakdown
+    const now = Date.now();
+    const number = args.number ?? (await nextSequenceNumber(ctx, userId, new Date().getFullYear(), "AU"));
     const defaultRate = defaultRateForMode(args.taxMode);
-    const itemsWithTax = args.items.map((item) => ({
+    const items = args.items.map((item, index) => ({
       ...item,
+      pos: index + 1,
+      total: item.qty * item.unitPrice,
       taxRate: item.taxRate ?? defaultRate,
     }));
-    const taxBreakdown = computeTaxBreakdown(itemsWithTax);
-
-    // Recompute totals from per-item rates (authoritative)
+    const taxBreakdown = computeTaxBreakdown(items as { total: number; taxRate: number }[]);
     let netAmount = 0;
     let vatAmount = 0;
-    for (const item of itemsWithTax) {
+    for (const item of items) {
       netAmount += item.total;
       const rate = item.taxRate || 0;
       if (rate > 0) vatAmount += (item.total * rate) / 100;
     }
     const grossAmount = netAmount + vatAmount;
-
-    const { sessionToken, ...rest } = args;
+    const { sessionToken: _sessionToken, userId: _clientUserId, ...rest } = args;
     const auftragId = await ctx.db.insert("auftrags", {
       ...rest,
       userId,
       number,
-      items: itemsWithTax,
+      items,
       taxBreakdown,
       netAmount,
       vatAmount,
@@ -227,8 +210,9 @@ export const create = mutation({
       updatedAt: now,
     });
 
-    // If created from angebot, link back
     if (args.angebotId) {
+      const angebot = await ctx.db.get(args.angebotId);
+      if (!angebot || angebot.userId !== userId) throw new Error("Angebot nicht gefunden");
       await ctx.db.patch(args.angebotId, {
         auftragId,
         status: "confirmed",
@@ -239,160 +223,140 @@ export const create = mutation({
     await ctx.db.insert("auditLog", {
       userId,
       action: "auftrag_created",
-      details: `Auftrag ${number} — €${args.grossAmount.toFixed(2)}`,
+      details: `Auftrag ${number} — €${grossAmount.toFixed(2)}`,
       timestamp: now,
     });
-
     return auftragId;
   },
 });
 
-// Confirm auftrag (→ can create rechnung)
 export const confirm = mutation({
   args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) throw new Error("Auftrag not found");
     if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
     if (auftrag.status === "discarded") throw new Error("Auftrag was discarded");
-
     await ctx.db.patch(args.auftragId, {
       status: "confirmed",
       confirmedDate: new Date().toLocaleDateString("de-AT"),
       updatedAt: Date.now(),
     });
-
     await ctx.db.insert("auditLog", {
-      userId: auftrag.userId,
+      userId,
       action: "auftrag_confirmed",
       details: `Auftrag ${auftrag.number} confirmed`,
       timestamp: Date.now(),
     });
+    return null;
   },
 });
 
-// Discard auftrag
 export const discard = mutation({
   args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) throw new Error("Auftrag not found");
     if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
     if (auftrag.status === "confirmed") throw new Error("Cannot discard confirmed auftrag");
-
     await ctx.db.patch(args.auftragId, {
       status: "discarded",
       discardedDate: new Date().toLocaleDateString("de-AT"),
       updatedAt: Date.now(),
     });
-
     await ctx.db.insert("auditLog", {
-      userId: auftrag.userId,
+      userId,
       action: "auftrag_discarded",
       details: `Auftrag ${auftrag.number} discarded`,
       timestamp: Date.now(),
     });
+    return null;
   },
 });
 
-// Reactivate discarded auftrag — zurück auf Entwurf
 export const reactivate = mutation({
   args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) throw new Error("Auftrag not found");
     if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
     if (auftrag.status !== "discarded") throw new Error("Nur verworfene Aufträge können reaktiviert werden");
-
     await ctx.db.patch(args.auftragId, {
       status: "draft",
       discardedDate: undefined,
       updatedAt: Date.now(),
     });
-
     await ctx.db.insert("auditLog", {
-      userId: auftrag.userId,
+      userId,
       action: "auftrag_reactivated",
       details: `Auftrag ${auftrag.number} reaktiviert`,
       timestamp: Date.now(),
     });
+    return null;
   },
 });
 
-// Unconfirm — setzt einen bestätigten Auftrag zurück auf Entwurf
-// Nur erlaubt wenn noch keine Rechnung generiert wurde
 export const unconfirm = mutation({
   args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) throw new Error("Auftrag not found");
     if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
     if (auftrag.status !== "confirmed") throw new Error("Auftrag ist nicht bestätigt");
-
-    // Prüfen ob bereits Rechnungen existieren
-    const rechnungIds = auftrag.rechnungIds || [];
-    if (rechnungIds.length > 0) {
+    if ((auftrag.rechnungIds || []).length > 0) {
       throw new Error("Auftrag kann nicht zurückgesetzt werden — bereits Rechnungen generiert");
     }
-
     await ctx.db.patch(args.auftragId, {
       status: "draft",
       confirmedDate: undefined,
       sentDate: undefined,
       updatedAt: Date.now(),
     });
-
     await ctx.db.insert("auditLog", {
-      userId: auftrag.userId,
+      userId,
       action: "auftrag_unconfirmed",
       details: `Auftrag ${auftrag.number} zurückgesetzt auf Entwurf`,
       timestamp: Date.now(),
     });
+    return null;
   },
 });
 
-// Delete auftrag — komplett löschen (nur wenn keine Rechnung existiert)
 export const deleteAuftrag = mutation({
   args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) throw new Error("Auftrag not found");
     if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
-
-    // Prüfen ob bereits Rechnungen existieren
-    const rechnungIds = auftrag.rechnungIds || [];
-    if (rechnungIds.length > 0) {
+    if ((auftrag.rechnungIds || []).length > 0) {
       throw new Error("Auftrag kann nicht gelöscht werden — bereits Rechnungen generiert");
     }
-
-    // Verknüpftes Angebot ebenfalls löschen
     const angebot = await ctx.db
       .query("angebots")
-      .withIndex("userId", (q) => q.eq("userId", auftrag.userId))
-      .filter((q) => q.eq(q.field("auftragId"), args.auftragId))
+      .withIndex("auftragId", (q) => q.eq("auftragId", args.auftragId))
       .first();
-
-    if (angebot) {
-      await ctx.db.delete(angebot._id);
-    }
-
+    if (angebot) await ctx.db.delete(angebot._id);
     await ctx.db.delete(args.auftragId);
-
     await ctx.db.insert("auditLog", {
-      userId: auftrag.userId,
+      userId,
       action: "auftrag_deleted",
       details: `Auftrag ${auftrag.number} gelöscht`,
       timestamp: Date.now(),
     });
+    return null;
   },
 });
 
-// Update auftrag — nur im Entwurf-Status
 export const update = mutation({
   args: {
     auftragId: v.id("auftrags"),
@@ -410,74 +374,42 @@ export const update = mutation({
     vatAmount: v.optional(v.number()),
     grossAmount: v.optional(v.number()),
     paymentTerms: v.optional(v.string()),
-    items: v.optional(v.array(v.object({
-      pos: v.number(),
-      description: v.string(),
-      qty: v.number(),
-      unit: v.string(),
-      unitPrice: v.number(),
-      total: v.number(),
-    }))),
+    items: v.optional(v.array(lineItemValidator)),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) throw new Error("Auftrag not found");
     if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
     if (auftrag.status !== "draft") throw new Error("Auftrag kann nur im Entwurf-Status bearbeitet werden");
-
-    const { sessionToken, auftragId, ...updates } = args;
-    await ctx.db.patch(auftragId, {
-      ...updates,
-      updatedAt: Date.now(),
-    });
-
+    const { sessionToken: _sessionToken, auftragId, ...updates } = args;
+    await ctx.db.patch(auftragId, { ...updates, updatedAt: Date.now() });
     await ctx.db.insert("auditLog", {
-      userId: auftrag.userId,
+      userId,
       action: "auftrag_updated",
       details: `Auftrag ${auftrag.number} bearbeitet`,
       timestamp: Date.now(),
     });
+    return null;
   },
 });
 
-// Generate Angebot from Auftrag
 export const createAngebotFromAuftrag = mutation({
   args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
+  returns: v.object({ angebotId: v.id("angebots"), angebotNumber: v.string() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) throw new Error("Auftrag not found");
     if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
-
-    // Generate angebot number (AN- prefix, shared sequence)
     const year = new Date().getFullYear();
-    const existing = await ctx.db
-      .query("numberSequences")
-      .withIndex("userId_year", (q) => q.eq("userId", auftrag.userId).eq("year", year))
-      .first();
-
-    let angebotNumber: string;
-    if (existing) {
-      const nextNum = existing.nextNumber;
-      await ctx.db.patch(existing._id, { nextNumber: nextNum + 1 });
-      angebotNumber = `AN-${year}-${String(nextNum).padStart(6, "0")}`;
-    } else {
-      await ctx.db.insert("numberSequences", {
-        userId: auftrag.userId,
-        year,
-        nextNumber: 2,
-        createdAt: Date.now(),
-      });
-      angebotNumber = `AN-${year}-000001`;
-    }
-
+    const angebotNumber = await nextSequenceNumber(ctx, userId, year, "AN");
     const now = Date.now();
     const angebotId = await ctx.db.insert("angebots", {
-      userId: auftrag.userId,
+      userId,
       number: angebotNumber,
       date: new Date().toLocaleDateString("de-AT"),
-      validUntil: undefined,
       deliveryDate: auftrag.deliveryDate,
       recipientName: auftrag.recipientName,
       recipientStreet: auftrag.recipientStreet,
@@ -496,85 +428,52 @@ export const createAngebotFromAuftrag = mutation({
       createdAt: now,
       updatedAt: now,
     });
-
     await ctx.db.insert("auditLog", {
-      userId: auftrag.userId,
+      userId,
       action: "angebot_from_auftrag",
       details: `Angebot ${angebotNumber} from Auftrag ${auftrag.number}`,
       timestamp: now,
     });
-
     return { angebotId, angebotNumber };
   },
 });
 
-// Get full detail: auftrag + angebot + rechnungen + storno
 export const getDetail = query({
   args: { auftragId: v.id("auftrags"), sessionToken: v.string() },
+  returns: v.union(v.any(), v.null()),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) return null;
     if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
-
-    // Find linked angebot (by auftragId)
     const angebot = await ctx.db
       .query("angebots")
-      .withIndex("userId", (q) => q.eq("userId", auftrag.userId))
-      .filter((q) => q.eq(q.field("auftragId"), args.auftragId))
+      .withIndex("auftragId", (q) => q.eq("auftragId", args.auftragId))
       .first();
-
-    // Find linked rechnungen
-    const rechnungIds = auftrag.rechnungIds || [];
     const rechnungen = [];
-    for (const rid of rechnungIds) {
-      const r = await ctx.db.get(rid);
-      if (r) rechnungen.push(r);
+    for (const invoiceId of auftrag.rechnungIds || []) {
+      const invoice = await ctx.db.get(invoiceId);
+      if (invoice) rechnungen.push(invoice);
     }
-
-    // Find storno rechnungen (rechnungen with stornoOf set)
-    const stornos = rechnungen.filter((r) => r.stornoOf || r.stornoNumber);
-
-    return {
-      auftrag,
-      angebot,
-      rechnungen,
-      stornos,
-    };
+    const stornos = rechnungen.filter((invoice) => invoice.stornoOf || invoice.stornoNumber);
+    return { auftrag, angebot, rechnungen, stornos };
   },
 });
 
-// Create rechnung from auftrag
 export const createRechnungFromAuftrag = mutation({
   args: {
     auftragId: v.id("auftrags"),
     sessionToken: v.string(),
-    type: v.string(), // "Rechnung" | "Honorarnote"
+    type: v.string(),
   },
+  returns: v.object({ rechnungId: v.id("outgoingInvoices"), number: v.string() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
     const auftrag = await ctx.db.get(args.auftragId);
     if (!auftrag) throw new Error("Auftrag not found");
     if (auftrag.userId !== userId) throw new Error("Zugriff verweigert");
     if (auftrag.status === "discarded") throw new Error("Auftrag was discarded");
-
-    // Free-plan limit: max 3 Rechnungen pro Monat
-    const user = await ctx.db.get(auftrag.userId);
-    if (user && user.plan === "free") {
-      const monthStart = startOfCurrentMonth();
-      const monthInvoices = await ctx.db
-        .query("outgoingInvoices")
-        .withIndex("userId", (q) => q.eq("userId", auftrag.userId))
-        .filter((q) => q.gte(q.field("createdAt"), monthStart))
-        .collect();
-      if (monthInvoices.length >= FREE_PLAN_MONTHLY_LIMIT) {
-        throw new Error(
-          "Free-Plan Limit erreicht: 3 Rechnungen pro Monat. Upgrade auf Starter für unbegrenzte Rechnungen."
-        );
-      }
-    }
-
-    // Auto-confirm if still draft (Flow A: direct to rechnung)
+    await assertWithinMonthlyInvoiceLimit(ctx, userId);
     if (auftrag.status === "draft") {
       await ctx.db.patch(args.auftragId, {
         status: "confirmed",
@@ -582,32 +481,11 @@ export const createRechnungFromAuftrag = mutation({
         updatedAt: Date.now(),
       });
     }
-
-    // Get next rechnung number
     const year = new Date().getFullYear();
-    const existing = await ctx.db
-      .query("numberSequences")
-      .withIndex("userId_year", (q) => q.eq("userId", auftrag.userId).eq("year", year))
-      .first();
-
-    let number: string;
-    if (existing) {
-      const nextNum = existing.nextNumber;
-      await ctx.db.patch(existing._id, { nextNumber: nextNum + 1 });
-      number = `RE-${year}-${String(nextNum).padStart(6, "0")}`;
-    } else {
-      await ctx.db.insert("numberSequences", {
-        userId: auftrag.userId,
-        year,
-        nextNumber: 2,
-        createdAt: Date.now(),
-      });
-      number = `RE-${year}-000001`;
-    }
-
+    const number = await nextSequenceNumber(ctx, userId, year, "RE");
     const now = Date.now();
     const rechnungId = await ctx.db.insert("outgoingInvoices", {
-      userId: auftrag.userId,
+      userId,
       auftragId: args.auftragId,
       number,
       type: args.type,
@@ -628,8 +506,6 @@ export const createRechnungFromAuftrag = mutation({
       vatAmount: auftrag.vatAmount,
       grossAmount: auftrag.grossAmount,
       items: auftrag.items,
-      // IMUTABLE: Rechnung ist sofort final beim Generieren.
-      // Keine Bearbeitung möglich — nur Storno oder markPaid.
       status: "final",
       lockedAt: now,
       paymentTerms: auftrag.paymentTerms,
@@ -637,21 +513,16 @@ export const createRechnungFromAuftrag = mutation({
       createdAt: now,
       updatedAt: now,
     });
-
-    // Link rechnung to auftrag
-    const currentRechnungIds = auftrag.rechnungIds || [];
     await ctx.db.patch(args.auftragId, {
-      rechnungIds: [...currentRechnungIds, rechnungId],
+      rechnungIds: [...(auftrag.rechnungIds || []), rechnungId],
       updatedAt: now,
     });
-
     await ctx.db.insert("auditLog", {
-      userId: auftrag.userId,
+      userId,
       action: "rechnung_from_auftrag",
       details: `${number} from Auftrag ${auftrag.number}`,
       timestamp: now,
     });
-
     return { rechnungId, number };
   },
 });
