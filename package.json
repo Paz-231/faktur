@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "convex": "convex dev"
+    "convex": "convex dev",
+    "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test shared/recurrence.test.ts"
   },
   "dependencies": {
     "convex": "^1.42.1",
