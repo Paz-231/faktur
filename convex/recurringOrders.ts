@@ -1,5 +1,11 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, query, type MutationCtx } from "./_generated/server";
+import {
+  internalAction,
+  internalMutation,
+  mutation,
+  query,
+  type MutationCtx,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { getAuthUserId } from "./authHelper";
@@ -23,12 +29,23 @@ const lineItemValidator = v.object({
 });
 
 const frequencyValidator = v.union(v.literal("monthly"), v.literal("yearly"));
-const endModeValidator = v.union(v.literal("never"), v.literal("on_date"), v.literal("after_occurrences"));
+const endModeValidator = v.union(
+  v.literal("never"),
+  v.literal("on_date"),
+  v.literal("after_occurrences"),
+);
 const templateStatusValidator = v.union(
   v.literal("active"),
   v.literal("paused"),
   v.literal("completed"),
   v.literal("error"),
+);
+const occurrenceStatusValidator = v.union(
+  v.literal("scheduled"),
+  v.literal("processing"),
+  v.literal("generated"),
+  v.literal("skipped"),
+  v.literal("failed"),
 );
 
 const templateValidator = v.object({
@@ -67,22 +84,24 @@ const templateValidator = v.object({
   updatedAt: v.number(),
 });
 
-function scheduleFromTemplate(template: Doc<"recurringOrderTemplates">): RecurrenceSchedule {
-  return {
-    frequency: template.frequency,
-    interval: template.interval,
-    startDate: template.startDate,
-    timezone: template.timezone,
-    endMode: template.endMode,
-    endDate: template.endDate,
-    maxOccurrences: template.maxOccurrences,
-    anchorDay: template.anchorDay,
-    anchorMonth: template.anchorMonth,
-    lastDayOfMonth: template.lastDayOfMonth,
-  };
-}
+const occurrenceValidator = v.object({
+  _id: v.id("recurringOrderOccurrences"),
+  _creationTime: v.number(),
+  userId: v.id("users"),
+  templateId: v.id("recurringOrderTemplates"),
+  occurrenceIndex: v.number(),
+  occurrenceDate: v.string(),
+  occurrenceKey: v.string(),
+  status: occurrenceStatusValidator,
+  generatedOrderId: v.optional(v.id("auftrags")),
+  attemptCount: v.number(),
+  errorCode: v.optional(v.string()),
+  errorMessage: v.optional(v.string()),
+  createdAt: v.number(),
+  processedAt: v.optional(v.number()),
+});
 
-function normalizeItems(items: Array<{
+type TemplateLineItem = {
   pos: number;
   description: string;
   qty: number;
@@ -90,7 +109,30 @@ function normalizeItems(items: Array<{
   unitPrice: number;
   total: number;
   taxRate?: number;
-}>, taxMode: string) {
+};
+
+function scheduleFromTemplate(template: Doc<"recurringOrderTemplates">): RecurrenceSchedule {
+  return {
+    frequency: template.frequency,
+    interval: template.interval,
+    startDate: template.startDate,
+    timezone: template.timezone,
+    endMode: template.endMode,
+    ...(template.endDate ? { endDate: template.endDate } : {}),
+    ...(template.maxOccurrences !== undefined
+      ? { maxOccurrences: template.maxOccurrences }
+      : {}),
+    anchorDay: template.anchorDay,
+    ...(template.anchorMonth !== undefined ? { anchorMonth: template.anchorMonth } : {}),
+    lastDayOfMonth: template.lastDayOfMonth,
+  };
+}
+
+function validateTimeZone(timezone: string): void {
+  dateInTimeZone(timezone, new Date(0));
+}
+
+function normalizeItems(items: TemplateLineItem[], taxMode: string) {
   const defaultRates: Record<string, number> = {
     kleinunternehmer: 0,
     ust_standard: 20,
@@ -117,15 +159,23 @@ function normalizeItems(items: Array<{
 }
 
 function calculateTax(items: ReturnType<typeof normalizeItems>) {
-  const grouped = new Map<number, { netAmount: number; vatAmount: number; grossAmount: number }>();
+  const grouped = new Map<number, {
+    netAmount: number;
+    vatAmount: number;
+    grossAmount: number;
+  }>();
   let netAmount = 0;
   let vatAmount = 0;
   for (const item of items) {
-    const rate = item.taxRate ?? 0;
+    const rate = item.taxRate;
     const vat = rate > 0 ? (item.total * rate) / 100 : 0;
     netAmount += item.total;
     vatAmount += vat;
-    const current = grouped.get(rate) ?? { netAmount: 0, vatAmount: 0, grossAmount: 0 };
+    const current = grouped.get(rate) ?? {
+      netAmount: 0,
+      vatAmount: 0,
+      grossAmount: 0,
+    };
     current.netAmount += item.total;
     current.vatAmount += vat;
     current.grossAmount += item.total + vat;
@@ -183,6 +233,20 @@ function findOccurrenceOnOrAfter(
   throw new Error("Wiederholungsserie überschreitet den unterstützten Planungshorizont");
 }
 
+async function insertAudit(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  action: string,
+  details: string,
+): Promise<void> {
+  await ctx.db.insert("auditLog", {
+    userId,
+    action,
+    details,
+    timestamp: Date.now(),
+  });
+}
+
 export const preview = query({
   args: {
     sessionToken: v.string(),
@@ -198,7 +262,7 @@ export const preview = query({
   returns: v.array(v.string()),
   handler: async (ctx, args) => {
     await getAuthUserId(ctx, args.sessionToken);
-    dateInTimeZone(args.timezone);
+    validateTimeZone(args.timezone);
     const schedule = createRecurrenceSchedule(args);
     return previewOccurrences(schedule, Math.min(args.count ?? 3, 12));
   },
@@ -235,7 +299,11 @@ export const createTemplate = mutation({
     if (user.plan === "free") {
       throw new Error("Wiederkehrende Aufträge sind im Starter- und Pro-Plan verfügbar");
     }
-    dateInTimeZone(args.timezone);
+    validateTimeZone(args.timezone);
+    const today = dateInTimeZone(args.timezone);
+    if (args.startDate < today) {
+      throw new Error("Das Startdatum darf nicht in der Vergangenheit liegen");
+    }
     if (args.customerId) {
       const customer = await ctx.db.get(args.customerId);
       if (!customer || customer.userId !== userId) throw new Error("Kunde nicht gefunden");
@@ -261,7 +329,20 @@ export const createTemplate = mutation({
       items,
       paymentTerms: args.paymentTerms,
       ...(args.footer ? { footer: args.footer } : {}),
-      ...schedule,
+      frequency: schedule.frequency,
+      interval: schedule.interval,
+      startDate: schedule.startDate,
+      timezone: schedule.timezone,
+      endMode: schedule.endMode,
+      ...(schedule.endDate ? { endDate: schedule.endDate } : {}),
+      ...(schedule.maxOccurrences !== undefined
+        ? { maxOccurrences: schedule.maxOccurrences }
+        : {}),
+      anchorDay: schedule.anchorDay,
+      ...(schedule.anchorMonth !== undefined
+        ? { anchorMonth: schedule.anchorMonth }
+        : {}),
+      lastDayOfMonth: schedule.lastDayOfMonth,
       status: "active",
       nextOccurrenceDate: schedule.startDate,
       occurrenceCount: 0,
@@ -269,12 +350,12 @@ export const createTemplate = mutation({
       createdAt: now,
       updatedAt: now,
     });
-    await ctx.db.insert("auditLog", {
+    await insertAudit(
+      ctx,
       userId,
-      action: "recurring_order_created",
-      details: `${args.title.trim()} — ${schedule.frequency} ab ${schedule.startDate}`,
-      timestamp: now,
-    });
+      "recurring_order_created",
+      `${args.title.trim()} — ${schedule.frequency} ab ${schedule.startDate}`,
+    );
     return templateId;
   },
 });
@@ -311,6 +392,27 @@ export const getTemplate = query({
   },
 });
 
+export const listOccurrences = query({
+  args: {
+    sessionToken: v.string(),
+    templateId: v.id("recurringOrderTemplates"),
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(occurrenceValidator),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx, args.sessionToken);
+    const template = await ctx.db.get(args.templateId);
+    if (!template || template.userId !== userId) throw new Error("Serie nicht gefunden");
+    return await ctx.db
+      .query("recurringOrderOccurrences")
+      .withIndex("userId_templateId", (q) =>
+        q.eq("userId", userId).eq("templateId", template._id),
+      )
+      .order("desc")
+      .take(Math.min(args.limit ?? 50, 100));
+  },
+});
+
 export const pauseTemplate = mutation({
   args: { sessionToken: v.string(), templateId: v.id("recurringOrderTemplates") },
   returns: v.null(),
@@ -320,6 +422,7 @@ export const pauseTemplate = mutation({
     if (!template || template.userId !== userId) throw new Error("Serie nicht gefunden");
     if (template.status !== "active") throw new Error("Nur aktive Serien können pausiert werden");
     await ctx.db.patch(template._id, { status: "paused", updatedAt: Date.now() });
+    await insertAudit(ctx, userId, "recurring_order_paused", template.title);
     return null;
   },
 });
@@ -343,6 +446,7 @@ export const resumeTemplate = mutation({
         errorMessage: undefined,
         updatedAt: Date.now(),
       });
+      await insertAudit(ctx, userId, "recurring_order_completed", template.title);
       return null;
     }
     await ctx.db.patch(template._id, {
@@ -352,6 +456,12 @@ export const resumeTemplate = mutation({
       errorMessage: undefined,
       updatedAt: Date.now(),
     });
+    await insertAudit(
+      ctx,
+      userId,
+      "recurring_order_resumed",
+      `${template.title} — nächster Termin ${next.date}`,
+    );
     return null;
   },
 });
@@ -368,6 +478,7 @@ export const endTemplate = mutation({
       nextOccurrenceDate: undefined,
       updatedAt: Date.now(),
     });
+    await insertAudit(ctx, userId, "recurring_order_ended", template.title);
     return null;
   },
 });
@@ -382,21 +493,25 @@ export const skipNextOccurrence = mutation({
     if (template.status !== "active" && template.status !== "paused") {
       throw new Error("Nur aktive oder pausierte Serien können übersprungen werden");
     }
-    if (!template.nextOccurrenceDate) throw new Error("Kein Termin zum Überspringen");
+    const occurrenceDate = template.nextOccurrenceDate;
+    if (!occurrenceDate) throw new Error("Kein Termin zum Überspringen");
     const existing = await ctx.db
       .query("recurringOrderOccurrences")
       .withIndex("templateId_occurrenceDate", (q) =>
-        q.eq("templateId", template._id).eq("occurrenceDate", template.nextOccurrenceDate!),
+        q.eq("templateId", template._id).eq("occurrenceDate", occurrenceDate),
       )
       .first();
+    if (existing && existing.status !== "skipped") {
+      throw new Error("Dieser Termin wurde bereits verarbeitet");
+    }
+    const now = Date.now();
     if (!existing) {
-      const now = Date.now();
       await ctx.db.insert("recurringOrderOccurrences", {
         userId,
         templateId: template._id,
         occurrenceIndex: template.occurrenceCount,
-        occurrenceDate: template.nextOccurrenceDate,
-        occurrenceKey: `${template._id}:${template.nextOccurrenceDate}`,
+        occurrenceDate,
+        occurrenceKey: `${template._id}:${occurrenceDate}`,
         status: "skipped",
         attemptCount: 0,
         createdAt: now,
@@ -409,8 +524,14 @@ export const skipNextOccurrence = mutation({
       occurrenceCount: nextCount,
       nextOccurrenceDate: following ?? undefined,
       status: following ? template.status : "completed",
-      updatedAt: Date.now(),
+      updatedAt: now,
     });
+    await insertAudit(
+      ctx,
+      userId,
+      "recurring_occurrence_skipped",
+      `${template.title} — ${occurrenceDate}`,
+    );
     return null;
   },
 });
@@ -430,13 +551,33 @@ export const processDueTemplates = internalMutation({
     for (const template of due) {
       if (!template.nextOccurrenceDate) continue;
       if (template.nextOccurrenceDate > dateInTimeZone(template.timezone)) continue;
-      await ctx.scheduler.runAfter(0, internal.recurringOrders.generateOccurrence, {
+      await ctx.scheduler.runAfter(0, internal.recurringOrders.generateOccurrenceJob, {
         templateId: template._id,
         expectedDate: template.nextOccurrenceDate,
       });
       scheduled += 1;
     }
     return scheduled;
+  },
+});
+
+export const generateOccurrenceJob = internalAction({
+  args: {
+    templateId: v.id("recurringOrderTemplates"),
+    expectedDate: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    try {
+      await ctx.runMutation(internal.recurringOrders.generateOccurrence, args);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unbekannter Fehler";
+      await ctx.runMutation(internal.recurringOrders.markOccurrenceFailed, {
+        ...args,
+        errorMessage: message.slice(0, 500),
+      });
+    }
+    return null;
   },
 });
 
@@ -474,6 +615,12 @@ export const generateOccurrence = internalMutation({
         updatedAt: Date.now(),
       });
       return { status: "error" as const };
+    }
+    if (template.customerId) {
+      const customer = await ctx.db.get(template.customerId);
+      if (!customer || customer.userId !== template.userId) {
+        throw new Error("Der verknüpfte Kunde ist nicht mehr verfügbar");
+      }
     }
 
     const now = Date.now();
@@ -534,12 +681,68 @@ export const generateOccurrence = internalMutation({
       errorMessage: undefined,
       updatedAt: now,
     });
-    await ctx.db.insert("auditLog", {
-      userId: template.userId,
-      action: "recurring_order_generated",
-      details: `${number} aus Serie ${template.title} für ${args.expectedDate}`,
-      timestamp: now,
-    });
+    await insertAudit(
+      ctx,
+      template.userId,
+      "recurring_order_generated",
+      `${number} aus Serie ${template.title} für ${args.expectedDate}`,
+    );
     return { status: "generated" as const, orderId };
+  },
+});
+
+export const markOccurrenceFailed = internalMutation({
+  args: {
+    templateId: v.id("recurringOrderTemplates"),
+    expectedDate: v.string(),
+    errorMessage: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const template = await ctx.db.get(args.templateId);
+    if (!template) return null;
+    const existing = await ctx.db
+      .query("recurringOrderOccurrences")
+      .withIndex("templateId_occurrenceDate", (q) =>
+        q.eq("templateId", template._id).eq("occurrenceDate", args.expectedDate),
+      )
+      .first();
+    const now = Date.now();
+    if (existing?.status === "generated") return null;
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        status: "failed",
+        attemptCount: existing.attemptCount + 1,
+        errorCode: "generation_failed",
+        errorMessage: args.errorMessage,
+        processedAt: now,
+      });
+    } else {
+      await ctx.db.insert("recurringOrderOccurrences", {
+        userId: template.userId,
+        templateId: template._id,
+        occurrenceIndex: template.occurrenceCount,
+        occurrenceDate: args.expectedDate,
+        occurrenceKey: `${template._id}:${args.expectedDate}`,
+        status: "failed",
+        attemptCount: 1,
+        errorCode: "generation_failed",
+        errorMessage: args.errorMessage,
+        createdAt: now,
+        processedAt: now,
+      });
+    }
+    await ctx.db.patch(template._id, {
+      status: "error",
+      errorMessage: args.errorMessage,
+      updatedAt: now,
+    });
+    await insertAudit(
+      ctx,
+      template.userId,
+      "recurring_occurrence_failed",
+      `${template.title} — ${args.expectedDate}: ${args.errorMessage}`,
+    );
+    return null;
   },
 });
