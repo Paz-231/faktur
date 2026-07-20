@@ -17,6 +17,7 @@ import {
   previewOccurrences,
   type RecurrenceSchedule,
 } from "../shared/recurrence";
+import { canUseRecurringOrders, recurringPlanError } from "../shared/planAccess";
 
 const lineItemValidator = v.object({
   pos: v.number(),
@@ -296,8 +297,8 @@ export const createTemplate = mutation({
     const userId = await getAuthUserId(ctx, args.sessionToken);
     const user = await ctx.db.get(userId);
     if (!user) throw new Error("Benutzer nicht gefunden");
-    if (user.plan === "free") {
-      throw new Error("Wiederkehrende Aufträge sind im Starter- und Pro-Plan verfügbar");
+    if (!canUseRecurringOrders(user)) {
+      throw new Error(recurringPlanError(user));
     }
     validateTimeZone(args.timezone);
     const today = dateInTimeZone(args.timezone);
@@ -356,6 +357,12 @@ export const createTemplate = mutation({
       "recurring_order_created",
       `${args.title.trim()} — ${schedule.frequency} ab ${schedule.startDate}`,
     );
+    if (schedule.startDate === today) {
+      await ctx.scheduler.runAfter(0, internal.recurringOrders.generateOccurrenceJob, {
+        templateId,
+        expectedDate: schedule.startDate,
+      });
+    }
     return templateId;
   },
 });
@@ -462,6 +469,12 @@ export const resumeTemplate = mutation({
       "recurring_order_resumed",
       `${template.title} — nächster Termin ${next.date}`,
     );
+    if (next.date <= today) {
+      await ctx.scheduler.runAfter(0, internal.recurringOrders.generateOccurrenceJob, {
+        templateId: template._id,
+        expectedDate: next.date,
+      });
+    }
     return null;
   },
 });
@@ -629,8 +642,9 @@ export const generateOccurrence = internalMutation({
       });
     }
     const user = await ctx.db.get(template.userId);
-    if (!user || user.plan === "free") {
-      throw new Error("Wiederkehrende Aufträge benötigen einen aktiven Starter- oder Pro-Plan");
+    if (!user) throw new Error("Benutzer nicht gefunden");
+    if (!canUseRecurringOrders(user)) {
+      throw new Error(recurringPlanError(user));
     }
     if (template.customerId) {
       const customer = await ctx.db.get(template.customerId);
