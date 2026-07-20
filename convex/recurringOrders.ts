@@ -409,7 +409,7 @@ export const listOccurrences = query({
         q.eq("userId", userId).eq("templateId", template._id),
       )
       .order("desc")
-      .take(Math.min(args.limit ?? 50, 100));
+      .take(Math.max(1, Math.min(args.limit ?? 50, 100)));
   },
 });
 
@@ -484,7 +484,11 @@ export const endTemplate = mutation({
 });
 
 export const skipNextOccurrence = mutation({
-  args: { sessionToken: v.string(), templateId: v.id("recurringOrderTemplates") },
+  args: {
+    sessionToken: v.string(),
+    templateId: v.id("recurringOrderTemplates"),
+    expectedDate: v.string(),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx, args.sessionToken);
@@ -494,6 +498,9 @@ export const skipNextOccurrence = mutation({
       throw new Error("Nur aktive oder pausierte Serien können übersprungen werden");
     }
     const occurrenceDate = template.nextOccurrenceDate;
+    if (occurrenceDate !== args.expectedDate) {
+      throw new Error("Der ausgewählte Termin ist nicht mehr aktuell");
+    }
     if (!occurrenceDate) throw new Error("Kein Termin zum Überspringen");
     const existing = await ctx.db
       .query("recurringOrderOccurrences")
@@ -587,7 +594,7 @@ export const generateOccurrence = internalMutation({
     expectedDate: v.string(),
   },
   returns: v.object({
-    status: v.union(v.literal("generated"), v.literal("skipped"), v.literal("error")),
+    status: v.union(v.literal("generated"), v.literal("skipped")),
     orderId: v.optional(v.id("auftrags")),
   }),
   handler: async (ctx, args) => {
@@ -602,19 +609,28 @@ export const generateOccurrence = internalMutation({
         q.eq("templateId", template._id).eq("occurrenceDate", args.expectedDate),
       )
       .first();
+    let occurrenceId: Id<"recurringOrderOccurrences">;
     if (existing) {
-      return existing.generatedOrderId
-        ? { status: "generated" as const, orderId: existing.generatedOrderId }
-        : { status: "skipped" as const };
+      if (existing.generatedOrderId) {
+        return { status: "generated" as const, orderId: existing.generatedOrderId };
+      }
+      if (existing.status !== "failed") return { status: "skipped" as const };
+      occurrenceId = existing._id;
+    } else {
+      occurrenceId = await ctx.db.insert("recurringOrderOccurrences", {
+        userId: template.userId,
+        templateId: template._id,
+        occurrenceIndex: template.occurrenceCount,
+        occurrenceDate: args.expectedDate,
+        occurrenceKey: `${template._id}:${args.expectedDate}`,
+        status: "processing",
+        attemptCount: 1,
+        createdAt: Date.now(),
+      });
     }
     const user = await ctx.db.get(template.userId);
     if (!user || user.plan === "free") {
-      await ctx.db.patch(template._id, {
-        status: "error",
-        errorMessage: "Wiederkehrende Aufträge benötigen einen aktiven Starter- oder Pro-Plan",
-        updatedAt: Date.now(),
-      });
-      return { status: "error" as const };
+      throw new Error("Wiederkehrende Aufträge benötigen einen aktiven Starter- oder Pro-Plan");
     }
     if (template.customerId) {
       const customer = await ctx.db.get(template.customerId);
@@ -627,16 +643,15 @@ export const generateOccurrence = internalMutation({
     const items = normalizeItems(template.items, template.taxMode);
     const totals = calculateTax(items);
     const number = await nextOrderNumber(ctx, template.userId, args.expectedDate);
-    const occurrenceId = await ctx.db.insert("recurringOrderOccurrences", {
-      userId: template.userId,
-      templateId: template._id,
-      occurrenceIndex: template.occurrenceCount,
-      occurrenceDate: args.expectedDate,
-      occurrenceKey: `${template._id}:${args.expectedDate}`,
-      status: "processing",
-      attemptCount: 1,
-      createdAt: now,
-    });
+    if (existing?.status === "failed") {
+      await ctx.db.patch(occurrenceId, {
+        status: "processing",
+        attemptCount: existing.attemptCount + 1,
+        errorCode: undefined,
+        errorMessage: undefined,
+        processedAt: undefined,
+      });
+    }
     const orderId = await ctx.db.insert("auftrags", {
       userId: template.userId,
       number,
