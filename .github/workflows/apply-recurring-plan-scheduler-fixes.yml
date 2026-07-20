@@ -1,0 +1,42 @@
+name: Apply recurring plan and scheduler fixes
+
+on:
+  push:
+    branches:
+      - agent/recurring-orders-polish
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/recurring-orders-polish
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply source fixes
+        run: node scripts/apply-recurring-plan-scheduler-fixes.mjs
+
+      - name: Commit fixes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No source changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add convex/recurringOrders.ts
+          git commit -m "fix: enforce active plans and generate due series immediately"
+          git push origin HEAD:agent/recurring-orders-polish
