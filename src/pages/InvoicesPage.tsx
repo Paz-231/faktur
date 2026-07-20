@@ -24,6 +24,7 @@ export function InvoicesPage({
   const [showCreate, setShowCreate] = useState(false);
   const [showRecurringCreate, setShowRecurringCreate] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [focusTemplateId, setFocusTemplateId] = useState<string | null>(null);
 
   const auftrags = useQuery(
     api.auftrags.list,
@@ -40,6 +41,22 @@ export function InvoicesPage({
     return <span className={current.cls}>{current.text}</span>;
   };
 
+  const openOrder = (orderId: string) => {
+    setView("orders");
+    setDetailId(orderId);
+  };
+
+  const openRecurringTemplate = (templateId: string) => {
+    setDetailId(null);
+    setFocusTemplateId(templateId);
+    setView("recurring");
+  };
+
+  const switchView = (nextView: "orders" | "recurring") => {
+    setView(nextView);
+    if (nextView === "orders") setFocusTemplateId(null);
+  };
+
   return (
     <div className="slide-up">
       <div className="page-header" style={{ alignItems: "flex-end", gap: "1rem", flexWrap: "wrap" }}>
@@ -51,7 +68,7 @@ export function InvoicesPage({
               role="tab"
               aria-selected={view === "orders"}
               className={`btn btn-sm ${view === "orders" ? "btn-primary" : ""}`}
-              onClick={() => setView("orders")}
+              onClick={() => switchView("orders")}
             >
               Aufträge
             </button>
@@ -60,7 +77,7 @@ export function InvoicesPage({
               role="tab"
               aria-selected={view === "recurring"}
               className={`btn btn-sm ${view === "recurring" ? "btn-primary" : ""}`}
-              onClick={() => setView("recurring")}
+              onClick={() => switchView("recurring")}
             >
               Wiederkehrend
             </button>
@@ -77,10 +94,13 @@ export function InvoicesPage({
 
       {view === "recurring" ? (
         <RecurringOrdersList
+          userId={userId}
           sessionToken={sessionToken}
           plan={plan}
           onCreate={() => setShowRecurringCreate(true)}
           onUpgrade={onUpgrade}
+          onOpenOrder={openOrder}
+          focusTemplateId={focusTemplateId}
         />
       ) : (
         <>
@@ -184,7 +204,10 @@ export function InvoicesPage({
           sessionToken={sessionToken}
           plan={plan}
           onClose={() => setShowRecurringCreate(false)}
-          onCreated={() => setView("recurring")}
+          onCreated={() => {
+            setFocusTemplateId(null);
+            setView("recurring");
+          }}
           onUpgrade={onUpgrade}
         />
       )}
@@ -196,6 +219,7 @@ export function InvoicesPage({
           sessionToken={sessionToken}
           onClose={() => setDetailId(null)}
           onRefresh={() => {}}
+          onOpenRecurring={openRecurringTemplate}
         />
       )}
     </div>
