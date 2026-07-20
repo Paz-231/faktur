@@ -7,6 +7,14 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
+// Recurring orders are checked hourly. Each template keeps its own timezone,
+// so the worker decides whether the local calendar date is already due.
+crons.interval(
+  "faktox-recurring-orders",
+  { hours: 1 },
+  internal.recurringOrders.processDueTemplates,
+);
+
 // Daily backup at 03:00 UTC (= 05:00 CET summer)
 crons.daily(
   "faktox-daily-backup",
